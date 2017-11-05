@@ -13,31 +13,38 @@ ESP8266WebServer server(80);
 #define D2 12
 #define D3 13
 
-
 #define DEBUGGING
 #define ADDR 0
-#define ADDR_TIMELIMIT ADDR
-#define ADDR_SSID (ADDR+10)
-#define ADDR_PASS (ADDR+30)
-#define ADDR_PASSDOOR (ADDR+50)
+#define ADDR_STASSID (ADDR)
+#define ADDR_STAPASS (ADDR+20)
+#define ADDR_APSSID (ADDR+40)
+#define ADDR_APPASS (ADDR+60)
+#define ADDR_PORTTCP (ADDR+80)
 
-#define SSID_DEFAULT "ESP8266 AP"
-#define PASS_DEFAULT "12345678"
-#define TIMELIMIT_DEFAULT 5000
-#define PASSDOOR_DEFAULT "12345678"
+#define STA_SSID_DEFAULT "G"
+#define STA_PASS_DEFAULT "132654789"
+#define AP_SSID_DEFAULT "ESP8266"
+#define AP_PASS_DEFAULT "12345678"
 
-const char* stassid = "dlink";
-const char* stapassword = "";
-const char* apssid = "AP_ESP8266"; // tên wifi phát ra
-const char* appassword = "12345678"; // mật khẩu wifi phát ra
+#define PORT_TCP_DEFAULT 123
 
+bool isLogin = false;
+String staSSID, staPASS;
+String apSSID, apPASS;
+String SoftIP, LocalIP;
+long portTCP;
+
+bool flagClear = false;
 
 void DEBUG(String s);
 void GPIO();
 int ScanRF();
-
-int Mode=0;
-int d=0;
+void SaveStringToEEPROM(String data,int address);
+String ReadStringFromEEPROM(int address);
+void ClearEEPROM();
+void AccessPoint();
+void ConnectWifi(long timeOut);
+void GiaTriThamSo();
 
 void setup()
 {
@@ -45,29 +52,32 @@ void setup()
   EEPROM.begin(512);
   Serial.begin(9600);
   delay(1000);
-  
   GPIO();
-//  ConfigDefault();
-//  WriteConfig();
-//  ReadConfig();
-//  ConnectWifi();
-//  AccessPoint();
+  if (EEPROM.read(255) != 255 || flagClear){
+    ClearEEPROM();
+    ConfigDefault();
+    WriteConfig();
+  }
+  ReadConfig();
+  AccessPoint();
+  ConnectWifi(4000);
+
+
+
   delay(1000);
- 
-  //StartServer();
+  StartServer();
   
 }
 
 void loop()
 {
+  server.handleClient();
   int Di = -1;
-  //server.handleClient();
   if (digitalRead(VT) == HIGH)
   {
     show("VT HIGH");
     Di = ScanRF();
   }
-
   if (Di != -1)
   {
     switch (Di)
@@ -83,7 +93,6 @@ void loop()
     }
     Di = -1;
   }
-  
   delay(50);
 }
 
@@ -105,13 +114,8 @@ void GPIO()
   pinMode(D2,INPUT_PULLUP); 
   pinMode(D3,INPUT_PULLUP); 
 
- 
 }
 
-void CheDo()
-{
-   
-}
 int ScanRF()
 {
   if (digitalRead(D0)==HIGH)
@@ -136,6 +140,14 @@ int ScanRF()
   return -1;
 }
 
+void ClearEEPROM()
+{
+  // write a 255 to all 512 bytes of the EEPROM
+  for (int i = 0; i < 512; i++)
+    EEPROM.write(i, 255);
+  EEPROM.commit();
+  show("Clear EEPROM");
+}
 /*
  * Function Save String To EEPROM
  * Parameter : +data    : String Data
@@ -148,7 +160,7 @@ void SaveStringToEEPROM(String data,int address)
   EEPROM.write(address,len); 
   for (int i=1;i<=len;i++)
     EEPROM.write(address+i,data.charAt(i-1));
-  //EEPROM.commit();
+  EEPROM.commit();
 }
 /*
  * Function Read String From EEPROM
@@ -167,120 +179,87 @@ String ReadStringFromEEPROM(int address)
 
 void ConfigDefault()
 {
-//  for (int i=0;i<SoTiet-1;i++)
-//    R[i]=5;
-//  TietHoc=45;
-//  GioBd=7;
-//  PhutBd=45;
-//  Println("Config Default");
+  isLogin = false;
+  staSSID = STA_SSID_DEFAULT;
+  staPASS = STA_PASS_DEFAULT;
+  apSSID = AP_SSID_DEFAULT;
+  apPASS = AP_PASS_DEFAULT;
+  portTCP = PORT_TCP_DEFAULT;
+  show("Config Default");
 }
 void WriteConfig()
 {
-//  int Address=0;
-//  EEPROM.write(Address,GioBd);
-//  EEPROM.write(Address+1,PhutBd);
-//  EEPROM.write(Address+2,TietHoc);
-//  Address=Address+3;
-//  for (int i=0;i<SoTiet-1;i++)
-//      EEPROM.write(Address+i,R[i]);
-//  EEPROM.commit();
-//  Println("Write Config");
+  SaveStringToEEPROM(staSSID, ADDR_STASSID);
+  SaveStringToEEPROM(staPASS, ADDR_STAPASS);
+  SaveStringToEEPROM(apSSID, ADDR_APSSID);
+  SaveStringToEEPROM(apPASS, ADDR_APPASS);
+  SaveStringToEEPROM(String(portTCP), ADDR_PORTTCP);
+  show("Write Config");
 }
 void ReadConfig()
 {
-//  Println("Read Config");
-//  int Address=0;
-//  GioBd=(int)EEPROM.read(Address);
-//  PhutBd=(int)EEPROM.read(Address+1);
-//  TietHoc=(int)EEPROM.read(Address+2);
-//  Address=Address+3;
-//  for (int i=0;i<SoTiet-1;i++)
-//      R[i]=(int)EEPROM.read(Address+i);
-//  Print("GioBd= "+String (GioBd));
-//  Print("PhutBd= "+String (PhutBd));
-//  Print("TietHoc= "+String (TietHoc));
-//  Print("\n");
-//  for (int i=0;i<SoTiet-1;i++)
-//      Println("R["+String(i)+"]="+String(R[i]));
+  staSSID = ReadStringFromEEPROM(ADDR_STASSID);
+  staPASS = ReadStringFromEEPROM(ADDR_STAPASS);
+  apSSID = ReadStringFromEEPROM(ADDR_APSSID);
+  apPASS = ReadStringFromEEPROM(ADDR_APPASS);
+  portTCP = atol(ReadStringFromEEPROM(ADDR_PORTTCP).c_str());
+  show("Read Config");
+  String str = staSSID + "\n" + staPASS + "\n" + apSSID + "\n" + apPASS + "\n" + portTCP; 
+  show(str);
 }
+
 void AccessPoint()
 {
-  WiFi.disconnect();
-  WiFi.softAP(apssid,appassword);
-  Serial.println("");
-  // Wait for connection
-
-  Serial.println("done");
-  IPAddress myIP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(myIP);
-}
-
-void ConnectWifi()
-{
+  show("Access Point Config");
   WiFi.disconnect();
   delay(1000);
-  WiFi.begin(stassid,stapassword);
-  Serial.print("Connecting");
-  while (WiFi.status() != WL_CONNECTED) {
-        delay(100);
-        Serial.print(".");
+  // Wait for connection
+  show( WiFi.softAP(apSSID.c_str(),apPASS.c_str()) ? "Ready" : "Failed!");
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  SoftIP = ""+(String)myIP[0] + "." + (String)myIP[1] + "." +(String)myIP[2] + "." +(String)myIP[3];
+  Serial.println(SoftIP);
+}
+
+void ConnectWifi(long timeOut)
+{
+  show("Connect to other Access Point");
+  delay(1000);
+  int count = timeOut / 100;
+  show("Connecting");
+  show(staSSID);
+  show(staPASS);
+  WiFi.begin(staSSID.c_str(),staPASS.c_str());
+  
+  while (WiFi.status() != WL_CONNECTED && --count > 0) {
+    delay(100);
+    Serial.print(".");
   }
-  Serial.println("IP local :");
-  Serial.println(WiFi.localIP()); 
+  if (count > 0){
+    show("Connected");
+    IPAddress myIP = WiFi.localIP();
+    LocalIP = ""+(String)myIP[0] + "." + (String)myIP[1] + "." +(String)myIP[2] + "." +(String)myIP[3];
+    show("Local IP :"); 
+    show(LocalIP);
+  }else show("Disconnect");
 }
 
 void StartServer()
 {
-  server.on("/Config", handleConfig);
-  server.on("/Home", handleHome);
+  server.on("/", webConfig);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
 }
 
-void handleConfig() {
+void webConfig() {
   GiaTriThamSo();
-  String httpcode= "";
-//  String httpcode="<html>\
-//<head>\
-//<meta charset=\"utf-8\">\
-//<title>Config</title>\
-//<style>\
-//  * {margin:0;padding:0}\
-//  body {width: 600px;height: 650px;border: red 3px solid; margin: 0 auto; }\
-//  .head1{ height: 50px;border-bottom: red 3px solid;  }\
-//  table, th, td { border: 1px solid black;border-collapse: collapse; }\
-//  tr{ height: 40px;text-align: center;font-size: 20px;}\
-//  input { height: 25px;text-align: center;}\
-//  button {height: 25px;width: 100px;background: red;}\
-//</style>\
-//</head>\
-//<body >\
-//  <center>\
-//  <div class=\"head1\"> \
-//    <h1>Cài Đặt Chuông Báo</h1>\
-//  </div>\
-//  <div class=\"content\">\
-//    <br>\
-//    <form action=\"\" method=\"get\">\
-//     Thời gian bắt đầu    :<input type=\"number\" name=\"GioBd\" min=\"5\" max=\"23\" value=\""+String(GioBd)+"\"/> Giờ\ 
-//     <input type=\"number\" name=\"PhutBd\" min=\"0\" max=\"60\" value=\""+String(PhutBd)+"\"/> Phút--\
-//      Tiết học:<input type=\"number\" name=\"TietHoc\" min=\"0\" max=\"60\" value=\""+String(TietHoc)+"\"/> Phút<br> <br>\
-//      <button type=\"submit\" name=\"Lưu lại\">Lưu lại</button>\
-//    </form>\
-//    <form action=\"\" method=\"get\">\
-//    <br>\
-//      Thời gian hệ thống:\
-//      <input type=\"date\" name=\"SetNgay\" min=\"2010-01-01\" max=\"2020-12-31\" />\
-//      <input type=\"time\" name=\"SetGio\" />\
-//      <button type=\"submit\" name=\"\">Cài đặt</button>\
-//    </form>\
-//  </div>\
-//  </center>\
-//</body>\
-//</html>";
-  server.send ( 200, "text/html",httpcode);
+  String html = Title();
+  if (isLogin)
+    html += ContentConfig();
+  else 
+    html += ContentLogin();
+  server.send ( 200, "text/html",html);
 }
 String SendTRWeb()
 {
@@ -288,6 +267,88 @@ String SendTRWeb()
 //  for (int i=0;i<SoTiet;i++)
 //    s+="<tr ><td> "+String (i+1)+" </td><td> Tiết "+String (i+1)+"</td><td> "+ConvertLongToSringTime(TimeHoc[i][0])  +"- "+ ConvertLongToSringTime(TimeHoc[i][1] )+"</td></tr>";
   return s;
+}
+String Title(){
+  String html = "<html>\
+  <head>\
+  <meta charset=\"utf-8\">\
+  <title>Config</title>\
+  <style>\
+    * {margin:0;padding:0}\
+    body {width: 600px;height: auto;border: red 3px solid; margin: 0 auto; box-sizing: border-box}\
+    .head1{ display: flex; height: 50px;border-bottom: red 3px solid;}\
+    .head1 h1{margin: 0 auto;}\
+    table, th, td { border: 1px solid black;border-collapse: collapse;}\
+    tr{ height: 40px;text-align: center;font-size: 20px;}\
+    input { height: 25px;text-align: center;}\
+    button {height: 25px;width: 100px;margin: 5px;}\
+    button:hover {background: #ccc; font-weight: bold; cursor: pointer;}\
+    .subtitle {text-align: left;font-weight: bold;}\
+    .content {padding: 10px 20px;}\
+    .left , .right { width: 50%; float: left;text-align: left;line-height: 25px;padding: 5px 0;}\
+    .left {text-align: right}\
+    .listBtn {text-align: center}\
+    a {text-decoration: none;}\
+  </style>\
+  </head>";
+  return html;
+}
+String ContentLogin(){
+  String content = "<body>\
+    <div class=\"head1\">\
+      <h1>Login Config</h1>\
+    </div>\
+    <div class=\"content\">\
+      <form action=\"\" method=\"get\">\
+        <div class=\"left\">Name Access Point </div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi\" name=\"txtNameAP\" required></div>\
+        <div class=\"left\">Password Port TCP</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Cổng TCP\" name=\"txtPassPortTCP\" required></div>\
+        <div class=\"listBtn\">\
+      <button type=\"submit\">Login</button></div>\
+      </form>\
+    </div>\
+  </body>\
+  </html>";
+  return content;
+}
+String ContentConfig(){
+  String content = "<body>\
+    <div class=\"head1\">\
+      <h1>Setting config</h1>\
+    </div>\
+    <div class=\"content\">\
+      <form action=\"\" method=\"get\">\
+        <div class=\"subtitle\">Station mode (Connect to other Access Point)</div>\
+        <div class=\"left\">Name Access Point </div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi\" name=\"txtStationAP\" value=\""+staSSID+"\" required></div>\
+        <div class=\"left\">Password Access Point</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Mật khấu wifi\" name=\"txtStationPassAP\" value=\""+staPASS+"\"></div>\
+        <div class=\"left\">Status</div>\
+        <div class=\"right\">: Disconnect</div>\
+        <div class=\"subtitle\">Access Point mode (This is a Access Point)</div>\
+        <div class=\"left\">Name WIFI </div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi phát ra\" name=\"txtNameStationAP\" value=\""+apSSID+"\" required></div>\
+        <div class=\"left\">Password WIFI</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Mật khấu wifi phát ra\" name=\"txtPassStationAP\" value=\""+apPASS+"\"></div>\
+        <div class=\"subtitle\">TCP Server</div>\
+        <div class=\"left\">Soft IP</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" disabled value=\""+LocalIP+"\"></div>\
+        <div class=\"left\">Local IP</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" disabled value=\""+SoftIP+"\"></div>\
+        <div class=\"left\">MAC Address</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xx-xx-xx-xx-xx-xx\" disabled></div>\
+        <div class=\"left\">Port</div>\
+        <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" placeholder=\"1234\" name=\"txtPortTCP\" value=\""+String(portTCP)+"\" required></div>\
+        <hr>\
+        <div class=\"listBtn\">\
+          <button type=\"submit\"><a href=\"\">Refresh</a></button>\
+          <button type=\"submit\" name=\"btnSave\" value=\"true\">Save</button><button type=\"submit\"><a href=\"?txtRestart=true\">Restart</a></div>\
+      </form>\
+    </div>\
+  </body>\
+  </html>";
+  return content;
 }
 void handleHome() {
   String httpcode="";
@@ -333,19 +394,47 @@ void GiaTriThamSo()
   message += "\nArguments: ";
   message += server.args();
   message += "\n";
-  String s1="";
+  String UserName, PassWord;
   for (uint8_t i=0; i<server.args(); i++){
      
     String Name=server.argName(i); 
     String Value=String( server.arg(i)) ;
-    s1=Name+ ": " +Value;
+    String s1=Name+ ": " +Value;
     Serial.println(s1);
+//    txtNameAP=dfdf&txtPassPortTCP=dfdsf
+//    txtStationAP=G&txtStationPassAP=132654789&txtNameStationAP=ESP8266&txtPassStationAP=12345678&txtPortTCP=123
+//    staSSID = ReadStringFromEEPROM(ADDR_STASSID);
+//    staPASS = ReadStringFromEEPROM(ADDR_STAPASS);
+//    apSSID = ReadStringFromEEPROM(ADDR_APSSID);
+//    apPASS = ReadStringFromEEPROM(ADDR_APPASS);
+//    portTCP = atol(ReadStringFromEEPROM(ADDR_PORTTCP).c_str());
+
+    if (Name.indexOf("txtNameAP") >= 0)
+      UserName =  Value ;
+    else  if (Name.indexOf("txtPassPortTCP") >= 0)
+      PassWord =  Value ;
+    if (Name.indexOf("txtStationAP") >= 0)
+      staSSID =  Value ;
+    else if (Name.indexOf("txtStationPassAP") >= 0)
+      staPASS =  Value ;
+    else if (Name.indexOf("txtNameStationAP") >= 0)
+      apSSID =  Value ;
+    else if (Name.indexOf("txtPassStationAP") >= 0)
+      apPASS =  Value ;
+    else if (Name.indexOf("txtPortTCP") >= 0)
+      portTCP =  atol(Value.c_str());
+    if (Name.indexOf("btnSave") >= 0)
+    {
+      WriteConfig();
+      show("Save config");
+    }else if (Name.indexOf("txtRestart") >= 0)
+    {
+      setup();
+      show("Restart Device");
+    }
   }
-  if (server.args()>5)
-  {
-    WriteConfig();
-    ReadConfig();
-  }
+  if (UserName.equals(apSSID) && PassWord.equals(String(portTCP)))
+    isLogin = true;
 }
 void handleNotFound(){
   String message = "File Not Found\n\n";
