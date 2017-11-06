@@ -6,12 +6,13 @@
 
 ESP8266WebServer server(80);
 
-#define RESET 12 
+#define RESET 4 
 #define VT 5
 #define D0 16
 #define D1 14
 #define D2 12
 #define D3 13
+#define LED 2
 
 #define DEBUGGING
 #define ADDR 0
@@ -26,12 +27,20 @@ ESP8266WebServer server(80);
 #define AP_SSID_DEFAULT "ESP8266"
 #define AP_PASS_DEFAULT "12345678"
 
-#define PORT_TCP_DEFAULT 123
+#define TIME_LIMIT_RESET 3000
+
+#define PORT_TCP_DEFAULT 333
+
+// Start a TCP Server on port 333
+WiFiServer tcpServer(PORT_TCP_DEFAULT);
+
 
 bool isLogin = false;
+bool isConnectAP = false;
 String staSSID, staPASS;
 String apSSID, apPASS;
 String SoftIP, LocalIP;
+String MAC;
 long portTCP;
 
 bool flagClear = false;
@@ -62,40 +71,61 @@ void setup()
   AccessPoint();
   ConnectWifi(4000);
 
-
-
+  tcpServer.begin(); // Start the TCP server port 333
+  Serial.println("Begin TCP Server");
   delay(1000);
   StartServer();
-  
+  delay(1000);
+  digitalWrite(LED,HIGH);
 }
-
+WiFiClient client;
 void loop()
 {
   server.handleClient();
-  int Di = -1;
-  if (digitalRead(VT) == HIGH)
+  ListenRF();
+
+  if (digitalRead(RESET)==LOW)
   {
-    show("VT HIGH");
-    Di = ScanRF();
-  }
-  if (Di != -1)
-  {
-    switch (Di)
-    {
-      case D0: show("D0"); 
-        break;
-      case D1: show("D1");
-        break;
-      case D2: show("D2");
-        break;
-      case D3: show("D3");
-        break;
+    //ConfigDefault();
+    long t=TIME_LIMIT_RESET/100;
+    while (digitalRead(RESET)==LOW && t-- >= 0){
+      delay(100);
     }
-    Di = -1;
+    if (t < 0){
+      show("RESET");
+      ConfigDefault();
+      setup();
+    }
+  }
+  
+  String resultRF = ListenRF();
+  if (resultRF.length() > 0) 
+  {
+    show(resultRF);
+  }
+  client = tcpServer.available();
+  if (client) {
+    show("Client connected.");
+    while (client.connected()) {
+      String resultRF = ListenRF();
+      if (resultRF.length() > 0) 
+      {
+        show(resultRF);
+        client.println(resultRF.c_str());
+        Serial.println("SEND OK");
+      }
+      if (client.available()) {
+        String stringClient = client.readString();
+        show("+IPD:" + stringClient);  
+        
+      }
+      delay(50);
+    }
+    client.stop();
+    Serial.println("Client disconnected");
   }
   delay(50);
 }
-
 void show(String s)
 {
   #ifdef DEBUGGING 
@@ -108,12 +138,37 @@ void GPIO()
   show("GPIO");
 // pinMode(PINCHUONG,OUTPUT);
 // digitalWrite(PINCHUONG,HIGH);
+  pinMode(LED,OUTPUT);
+  digitalWrite(LED,LOW);
+  pinMode(RESET,INPUT_PULLUP);
   pinMode(VT,INPUT_PULLUP); 
   pinMode(D0,INPUT_PULLUP); 
   pinMode(D1,INPUT_PULLUP); 
   pinMode(D2,INPUT_PULLUP); 
   pinMode(D3,INPUT_PULLUP); 
 
+}
+
+String ListenRF()
+{
+  int Di = -1;
+  if (digitalRead(VT) == HIGH)
+  {
+    show("VT HIGH");
+    Di = ScanRF();
+  }
+  if (Di != -1)
+  {
+    if (Di == D0)
+      return "D0";
+    else if (Di == D1)
+      return "D1";
+    else if (Di == D2)
+      return "D2";
+    else if (Di == D3)
+      return "D3";
+  }
+  return "";
 }
 
 int ScanRF()
@@ -171,7 +226,6 @@ String ReadStringFromEEPROM(int address)
 {
   String s="";
   int len=(int)EEPROM.read(address);
- 
   for (int i=1;i<=len;i++)
     s+=(char)EEPROM.read(address+i);
   return s;
@@ -219,6 +273,11 @@ void AccessPoint()
   Serial.print("AP IP address: ");
   SoftIP = ""+(String)myIP[0] + "." + (String)myIP[1] + "." +(String)myIP[2] + "." +(String)myIP[3];
   Serial.println(SoftIP);
+  byte mac[6];
+  WiFi.macAddress(mac);
+  MAC = String(mac[0],HEX)+ "-" + String(mac[1],HEX)+ "-" + String(mac[2],HEX)+ "-" + String(mac[3],HEX)+ "-" + String(mac[4],HEX)+ "-" + String(mac[5],HEX);;
+  show("MAC");
+  show(MAC);
 }
 
 void ConnectWifi(long timeOut)
@@ -241,7 +300,11 @@ void ConnectWifi(long timeOut)
     LocalIP = ""+(String)myIP[0] + "." + (String)myIP[1] + "." +(String)myIP[2] + "." +(String)myIP[3];
     show("Local IP :"); 
     show(LocalIP);
-  }else show("Disconnect");
+    isConnectAP = true;
+  }else {
+    isConnectAP = false;
+    show("Disconnect");
+  }
 }
 
 void StartServer()
@@ -325,7 +388,7 @@ String ContentConfig(){
         <div class=\"left\">Password Access Point</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"Mật khấu wifi\" name=\"txtStationPassAP\" value=\""+staPASS+"\"></div>\
         <div class=\"left\">Status</div>\
-        <div class=\"right\">: Disconnect</div>\
+        <div class=\"right\">: "+(isConnectAP == true ? "Connected" : "Disconnect")+"</div>\
         <div class=\"subtitle\">Access Point mode (This is a Access Point)</div>\
         <div class=\"left\">Name WIFI </div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi phát ra\" name=\"txtNameStationAP\" value=\""+apSSID+"\" required></div>\
@@ -337,8 +400,8 @@ String ContentConfig(){
         <div class=\"left\">Local IP</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" disabled value=\""+SoftIP+"\"></div>\
         <div class=\"left\">MAC Address</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xx-xx-xx-xx-xx-xx\" disabled></div>\
-        <div class=\"left\">Port</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xx-xx-xx-xx-xx-xx\" disabled value=\""+MAC+"\"></div>\
+        <div class=\"left\">ID</div>\
         <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" placeholder=\"1234\" name=\"txtPortTCP\" value=\""+String(portTCP)+"\" required></div>\
         <hr>\
         <div class=\"listBtn\">\
