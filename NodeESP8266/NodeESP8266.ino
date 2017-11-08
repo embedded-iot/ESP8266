@@ -33,6 +33,21 @@ ESP8266WebServer server(80);
 
 // Start a TCP Server on port 333
 WiFiServer tcpServer(PORT_TCP_DEFAULT);
+//*** Soft Ap variables ***
+const char *APssid = "ESP8266-12E";
+const char *APpassword = ""; // No password for the AP
+IPAddress APlocal_IP(192, 168, 4, 1);
+IPAddress APgateway(192, 168, 4, 1);
+IPAddress APsubnet(255, 255, 255, 0);
+
+//***STAtion variables ***
+const char *STAssid = "G"; // Network to be joined as a station SSID
+const char *STApassword = "132654789"; // Network to be joined as a station password
+IPAddress STAlocal_IP(192, 168, 0, 127);
+IPAddress STAgateway(192, 168, 0, 1);
+IPAddress STAsubnet(255, 255, 255, 0);
+
+
 
 
 bool isLogin = false;
@@ -43,7 +58,7 @@ String SoftIP, LocalIP;
 String MAC;
 long portTCP;
 
-bool flagClear = false;
+bool flagClear = true;
 
 void DEBUG(String s);
 void GPIO();
@@ -55,6 +70,15 @@ void AccessPoint();
 void ConnectWifi(long timeOut);
 void GiaTriThamSo();
 
+
+void ConfigNetwork(){
+  // Configure the Soft Access Point. Somewhat verbosely... (for completeness sake)
+ Serial.print("Soft-AP configuration ... ");
+ Serial.println(WiFi.softAPConfig(APlocal_IP, APgateway, APsubnet) ? "OK" : "Failed!"); // configure network
+ // Fire up wifi station
+ Serial.printf("Station connecting to %s\n", STAssid);
+ WiFi.config(STAlocal_IP, STAgateway, STAsubnet);
+}
 void setup()
 {
   delay(1000);
@@ -68,6 +92,11 @@ void setup()
     WriteConfig();
   }
   ReadConfig();
+  WiFi.disconnect();
+  delay(1000);
+  WiFi.mode(WIFI_AP_STA);
+  delay(1000);
+  ConfigNetwork();
   AccessPoint();
   ConnectWifi(4000);
 
@@ -78,11 +107,11 @@ void setup()
   delay(1000);
   digitalWrite(LED,HIGH);
 }
-WiFiClient client;
+WiFiClient client ;
 void loop()
 {
+ 
   server.handleClient();
-  ListenRF();
 
   if (digitalRead(RESET)==LOW)
   {
@@ -101,30 +130,56 @@ void loop()
   String resultRF = ListenRF();
   if (resultRF.length() > 0) 
   {
+    digitalWrite(LED,LOW);
+    delay(50);
     show(resultRF);
+    digitalWrite(LED,HIGH);
   }
-  client = tcpServer.available();
-  if (client) {
-    show("Client connected.");
-    while (client.connected()) {
-      String resultRF = ListenRF();
-      if (resultRF.length() > 0) 
-      {
-        show(resultRF);
-        client.println(resultRF.c_str());
-        Serial.println("SEND OK");
-      }
-      if (client.available()) {
+  //client = tcpServer.available();
+  if (!client.connected()) {
+        // try to connect to a new client
+        client = tcpServer.available();
+    } else {
+      // read data from the connected client
+      if (client.available() > 0) {
         String stringClient = client.readString();
         show("+IPD:" + stringClient);  
-        
       }
-      delay(50);
-    }
-    client.stop();
-    Serial.println("Client disconnected");
+      if (resultRF.length() > 0) {
+        digitalWrite(LED,LOW);
+        show(resultRF);
+        client.println(resultRF.c_str());
+        delay(50);
+        show("SEND OK");
+        digitalWrite(LED,HIGH);
+      }
   }
-  delay(50);
+//  if (client) {
+//    show("Client connected.");
+//    client.flush();
+//    while (client.connected()) {
+//      //server.handleClient();
+//      String resultRF = ListenRF();
+//      if (resultRF.length() > 0) 
+//      {
+//        digitalWrite(LED,LOW);
+//        show(resultRF);
+//        client.println(resultRF.c_str());
+//        delay(100);
+//        show("SEND OK");
+//        digitalWrite(LED,HIGH);
+//      }
+//      if (client.available()) {
+//        String stringClient = client.readString();
+//        show("+IPD:" + stringClient);  
+//        
+//      }
+//      delay(5);
+//    }
+//    client.stop();
+//    Serial.println("Client disconnected");
+//  }
+  delay(5);
 }
 void show(String s)
 {
@@ -265,7 +320,7 @@ void ReadConfig()
 void AccessPoint()
 {
   show("Access Point Config");
-  WiFi.disconnect();
+  //WiFi.disconnect();
   delay(1000);
   // Wait for connection
   show( WiFi.softAP(apSSID.c_str(),apPASS.c_str()) ? "Ready" : "Failed!");
