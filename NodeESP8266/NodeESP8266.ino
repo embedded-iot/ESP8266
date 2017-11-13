@@ -3,6 +3,7 @@
 #include <ESP8266WebServer.h>
 #include <WiFiServer.h>
 #include <EEPROM.h>
+#include <WiFiUdp.h>
 
 ESP8266WebServer server(80);
 
@@ -22,10 +23,11 @@ ESP8266WebServer server(80);
 #define ADDR_APPASS (ADDR+60)
 #define ADDR_PORTTCP (ADDR+80)
 
-#define STA_SSID_DEFAULT "G"
+#define STA_SSID_DEFAULT "G1"
 #define STA_PASS_DEFAULT "132654789"
-#define AP_SSID_DEFAULT "ESP8266"
-#define AP_PASS_DEFAULT "12345678"
+#define AP_SSID_DEFAULT "QUAN"
+#define AP_PASS_DEFAULT ""
+#define ID_DEFAULT 123
 
 #define TIME_LIMIT_RESET 3000
 
@@ -34,31 +36,43 @@ ESP8266WebServer server(80);
 // Start a TCP Server on port 333
 WiFiServer tcpServer(PORT_TCP_DEFAULT);
 //*** Soft Ap variables ***
-const char *APssid = "ESP8266-12E";
-const char *APpassword = ""; // No password for the AP
 IPAddress APlocal_IP(192, 168, 4, 1);
 IPAddress APgateway(192, 168, 4, 1);
 IPAddress APsubnet(255, 255, 255, 0);
 
+
 //***STAtion variables ***
-const char *STAssid = "G"; // Network to be joined as a station SSID
-const char *STApassword = "132654789"; // Network to be joined as a station password
 IPAddress STAlocal_IP(192, 168, 0, 127);
 IPAddress STAgateway(192, 168, 0, 1);
 IPAddress STAsubnet(255, 255, 255, 0);
 
+// Config Network
+#define STA_IP_DEFAULT "192.168.0.127"
+#define STA_GATEWAY_DEFAULT "192.168.0.1"
+#define STA_SUBNET_DEFAULT "255.255.255.0"
 
-
+#define AP_IP_DEFAULT "192.168.4.1"
+#define AP_GATEWAY_DEFAULT "192.168.4.1"
+#define AP_SUBNET_DEFAULT "255.255.255.0"
 
 bool isLogin = false;
 bool isConnectAP = false;
 String staSSID, staPASS;
+String staIP, staGateway, staSubnet;
 String apSSID, apPASS;
+String apIP, apGateway, apSubnet;
 String SoftIP, LocalIP;
+
 String MAC;
 long portTCP;
 
-bool flagClear = true;
+bool flagClear = false;
+long timeStation = 5000;
+
+WiFiUDP Udp;
+long udpPort = 4210;
+char incomingPacket[255];
+String receivedUDP;
 
 void DEBUG(String s);
 void GPIO();
@@ -69,21 +83,23 @@ void ClearEEPROM();
 void AccessPoint();
 void ConnectWifi(long timeOut);
 void GiaTriThamSo();
+String listenUDP();
 
 
 void ConfigNetwork(){
   // Configure the Soft Access Point. Somewhat verbosely... (for completeness sake)
- Serial.print("Soft-AP configuration ... ");
- Serial.println(WiFi.softAPConfig(APlocal_IP, APgateway, APsubnet) ? "OK" : "Failed!"); // configure network
+ show("Soft-AP configuration ... ");
+ show(WiFi.softAPConfig(APlocal_IP, APgateway, APsubnet) ? "OK" : "Failed!"); // configure network
  // Fire up wifi station
- Serial.printf("Station connecting to %s\n", STAssid);
- WiFi.config(STAlocal_IP, STAgateway, STAsubnet);
+ show("Station configuration ... ");
+ show(WiFi.config(STAlocal_IP, STAgateway, STAsubnet) ? "OK" : "Failed!");
 }
 void setup()
 {
   delay(1000);
+  WiFi.disconnect();
   EEPROM.begin(512);
-  Serial.begin(9600);
+  Serial.begin(115200);
   delay(1000);
   GPIO();
   if (EEPROM.read(255) != 255 || flagClear){
@@ -92,27 +108,47 @@ void setup()
     WriteConfig();
   }
   ReadConfig();
-  WiFi.disconnect();
   delay(1000);
   WiFi.mode(WIFI_AP_STA);
   delay(1000);
   ConfigNetwork();
-  AccessPoint();
-  ConnectWifi(4000);
-
-  tcpServer.begin(); // Start the TCP server port 333
+  
+  //ConnectWifi(4000);
+  //isConnectAP
+  //AccessPoint();
+  delay(2000);
+  ConnectWifi(timeStation); 
   Serial.println("Begin TCP Server");
+  tcpServer.begin(); // Start the TCP server port 333
   delay(1000);
+  if (isConnectAP == false)
+  {
+    //WiFi.disconnect();
+    WiFi.mode(WIFI_AP);
+    show("Set WIFI_AP");
+  }
+  AccessPoint();
+
+  delay(1000);
+ 
   StartServer();
-  delay(1000);
+  
+  // Setup the UDP port
+  show("begin UDP port");
+  Udp.begin(udpPort);
   digitalWrite(LED,HIGH);
 }
 WiFiClient client ;
+long timeLogout = 20000;
+long t=0;
 void loop()
 {
- 
   server.handleClient();
 
+  if (millis() - t > timeLogout) {
+    isLogin = false;
+    t = millis();
+  }
   if (digitalRead(RESET)==LOW)
   {
     //ConfigDefault();
@@ -126,6 +162,13 @@ void loop()
       setup();
     }
   }
+  receivedUDP = listenUDP();
+  if (receivedUDP.length() > 0)
+  {
+    show(receivedUDP);
+    SendUdp("192.168.0.255", udpPort, receivedUDP);
+    receivedUDP = "";
+  }
   
   String resultRF = ListenRF();
   if (resultRF.length() > 0) 
@@ -133,6 +176,7 @@ void loop()
     digitalWrite(LED,LOW);
     delay(50);
     show(resultRF);
+    SendUdp("192.168.0.255", udpPort, resultRF);
     digitalWrite(LED,HIGH);
   }
   //client = tcpServer.available();
@@ -154,32 +198,8 @@ void loop()
         digitalWrite(LED,HIGH);
       }
   }
-//  if (client) {
-//    show("Client connected.");
-//    client.flush();
-//    while (client.connected()) {
-//      //server.handleClient();
-//      String resultRF = ListenRF();
-//      if (resultRF.length() > 0) 
-//      {
-//        digitalWrite(LED,LOW);
-//        show(resultRF);
-//        client.println(resultRF.c_str());
-//        delay(100);
-//        show("SEND OK");
-//        digitalWrite(LED,HIGH);
-//      }
-//      if (client.available()) {
-//        String stringClient = client.readString();
-//        show("+IPD:" + stringClient);  
-//        
-//      }
-//      delay(5);
-//    }
-//    client.stop();
-//    Serial.println("Client disconnected");
-//  }
-  delay(5);
+
+  delay(50);
 }
 void show(String s)
 {
@@ -226,6 +246,27 @@ String ListenRF()
   return "";
 }
 
+void SendUdp(String address , long localUdpPort, String data){
+ Udp.beginPacket(address.c_str(), localUdpPort);
+ Udp.write(data.c_str());
+ Udp.endPacket();
+}
+String listenUDP(){
+ int packetSize = Udp.parsePacket();
+ if (packetSize)
+ {
+  show("Received UDP packet");
+  show("Received" + String(packetSize) + "bytes form "+ Udp.remoteIP().toString() + " ,port " + Udp.remotePort());
+  int len = Udp.read(incomingPacket, 255);
+  if (len > 0){
+   incomingPacket[len] = 0;
+  }
+  Serial.printf("UDP packet contents: %s\n", incomingPacket);
+  show("UDP packet:"+ String(incomingPacket));
+  return String(incomingPacket);
+ }
+ return "";
+}
 int ScanRF()
 {
   if (digitalRead(D0)==HIGH)
@@ -395,7 +436,7 @@ String Title(){
     * {margin:0;padding:0}\
     body {width: 600px;height: auto;border: red 3px solid; margin: 0 auto; box-sizing: border-box}\
     .head1{ display: flex; height: 50px;border-bottom: red 3px solid;}\
-    .head1 h1{margin: 0 auto;}\
+    .head1 h1{margin: auto;}\
     table, th, td { border: 1px solid black;border-collapse: collapse;}\
     tr{ height: 40px;text-align: center;font-size: 20px;}\
     input { height: 25px;text-align: center;}\
@@ -545,7 +586,7 @@ void GiaTriThamSo()
     {
       WriteConfig();
       show("Save config");
-    }else if (Name.indexOf("txtRestart") >= 0)
+    }else if (Name.indexOf("txtRestart") >= 0 && isLogin == true)
     {
       setup();
       show("Restart Device");
