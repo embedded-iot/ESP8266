@@ -78,6 +78,7 @@ String receivedUDP;
 int idWebSite = 0;
 
 void DEBUG(String s);
+bool isValidStringIP(String strIP);
 void GPIO();
 int ScanRF();
 void SaveStringToEEPROM(String data,int address);
@@ -96,11 +97,11 @@ void GiaTriThamSo();
 
 void setup()
 {
-  idWebSite = 0;
+  Serial.begin(115200);
   delay(1000);
+  idWebSite = 0;
   WiFi.disconnect();
   EEPROM.begin(512);
-  Serial.begin(115200);
   delay(1000);
   GPIO();
   if (EEPROM.read(255) != 255 || flagClear){
@@ -146,10 +147,7 @@ long timeLogout = 20000;
 long t=0;
 void loop()
 {
-  if (isLogin == false)
-    idWebSite = 0;
   server.handleClient();
-  
   if (millis() - t > timeLogout) {
     isLogin = false;
     t = millis();
@@ -257,6 +255,15 @@ IPAddress convertStringToIPAddress(String stringIP)
   IPAddress IP ;
   IP.fromString(stringIP);
   return (IP);
+}
+bool isValidStringIP(String strIP){
+  IPAddress IP ;
+  if (IP.fromString(strIP)){
+    //show("IP true");
+    return true;
+  }
+  //show("IP false");
+  return false;
 }
 String ListenRF()
 {
@@ -593,9 +600,10 @@ String ContentConfig(){
         <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" placeholder=\"1234\" name=\"txtPortTCP\" value=\""+String(portTCP)+"\" required></div>\
         <hr>\
         <div class=\"listBtn\">\
-          <button type=\"submit\"><a href=\"\">Refresh</a></button>\
+          <button type=\"submit\"><a href=\"?txtRefresh=true\">Refresh</a></button>\
           <button type=\"submit\" name=\"btnSave\" value=\"true\">Save</button>\
           <button type=\"submit\"><a href=\"?txtRestart=true\">Restart</a>\
+          <button type=\"submit\"><a href=\"?txtLogout=true\">Logout</a>\
         </div>\
       </form>\
     </div>\
@@ -620,17 +628,45 @@ void GiaTriThamSo()
     String s1=Name+ ": " +Value;
     //show(s1);
     if (isLogin == true) {
-      if (Name.indexOf("txtStationAP") >= 0){
+      if (Name.indexOf("txtLogout") >= 0){
+        isLogin = false;
+        show("Logout");
+      }
+      else if (Name.indexOf("txtSTAName") >= 0){
         staSSID =  Value ;
       }
-      else if (Name.indexOf("txtStationPassAP") >= 0){
+      else if (Name.indexOf("txtSTAPass") >= 0){
         staPASS =  Value ;
       }
-      else if (Name.indexOf("txtNameStationAP") >= 0){
+      else if (Name.indexOf("txtSTAIP") >= 0){
+        if (isValidStringIP(Value))
+          staIP =  Value ;
+      }
+      else if (Name.indexOf("txtSTAGateway") >= 0){
+        if (isValidStringIP(Value))
+          staGateway =  Value ;
+      }
+      else if (Name.indexOf("txtSTASunet") >= 0){
+        if (isValidStringIP(Value))
+          staSubnet =  Value ;
+      }
+      else if (Name.indexOf("txtAPName") >= 0){
         apSSID =  Value ;
       }
-      else if (Name.indexOf("txtPassStationAP") >= 0){
-        apPASS =  Value ;
+      else if (Name.indexOf("txtAPPass") >= 0){
+        staPASS =  Value ;
+      }
+      else if (Name.indexOf("txtAPIP") >= 0){
+        if (isValidStringIP(Value))
+          apIP =  Value ;  
+      }
+      else if (Name.indexOf("txtAPGateway") >= 0){
+        if (isValidStringIP(Value))
+          apGateway =  Value ;
+      }
+      else if (Name.indexOf("APSubnet") >= 0){
+        if (isValidStringIP(Value))
+          apSubnet =  Value ;
       }
       else if (Name.indexOf("txtPortTCP") >= 0) {
         portTCP =  atol(Value.c_str());
@@ -639,6 +675,7 @@ void GiaTriThamSo()
       {
         idWebSite = 2;
         show("Verify restart");
+        show(Value);
       }
       else if (Name.indexOf("btnSave") >= 0)
       {
@@ -672,6 +709,8 @@ void GiaTriThamSo()
     Name = "";
     Value = "";
   }
+  if (isLogin == false)
+    idWebSite = 0;
 }
 void handleNotFound(){
   String message = "File Not Found\n\n";
