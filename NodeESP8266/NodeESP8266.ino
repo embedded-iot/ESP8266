@@ -34,28 +34,40 @@ ESP8266WebServer server(80);
 
 #define ID_DEFAULT 1
 
-#define STA_SSID_DEFAULT "G"
-#define STA_PASS_DEFAULT "132654789"
-#define AP_SSID_DEFAULT "AP"+String(ID_DEFAULT)
-#define AP_PASS_DEFAULT ""
-
 
 #define TIME_LIMIT_RESET 3000
-
 #define PORT_TCP_DEFAULT 333
 // Start a TCP Server on port 333
 WiFiServer tcpServer(PORT_TCP_DEFAULT);
 #define PORT_UDP_DEFAULT 4210
 WiFiUDP Udp;
 
-// Config Network
-#define STA_IP_DEFAULT "192.168.0.122"
-#define STA_GATEWAY_DEFAULT "192.168.0.1"
-#define STA_SUBNET_DEFAULT "255.255.255.0"
+#define PTRO1
+#ifdef  PTRO
+  #define STA_SSID_DEFAULT "G"
+  #define STA_PASS_DEFAULT "132654789"
+  #define AP_SSID_DEFAULT "AP"+String(ID_DEFAULT)
+  #define AP_PASS_DEFAULT ""
+  #define STA_IP_DEFAULT "192.168.0.122"
+  #define STA_GATEWAY_DEFAULT "192.168.0.1"
+  #define STA_SUBNET_DEFAULT "255.255.255.0"
+  #define AP_IP_DEFAULT "192.168.4.1"
+  #define AP_GATEWAY_DEFAULT "192.168.4.1"
+  #define AP_SUBNET_DEFAULT "255.255.255.0"
+#else 
+  #define STA_SSID_DEFAULT "AP02"
+  #define STA_PASS_DEFAULT "12345678"
+  #define AP_SSID_DEFAULT "AP"+String(ID_DEFAULT)
+  #define AP_PASS_DEFAULT ""
+  #define STA_IP_DEFAULT "192.168.137.122"
+  #define STA_GATEWAY_DEFAULT "192.168.137.1"
+  #define STA_SUBNET_DEFAULT "255.255.255.0"
+  #define AP_IP_DEFAULT "192.168.4.1"
+  #define AP_GATEWAY_DEFAULT "192.168.4.1"
+  #define AP_SUBNET_DEFAULT "255.255.255.0"
+#endif
 
-#define AP_IP_DEFAULT "192.168.4.1"
-#define AP_GATEWAY_DEFAULT "192.168.4.1"
-#define AP_SUBNET_DEFAULT "255.255.255.0"
+bool flagClear = false;
 
 bool isLogin = false;
 bool isConnectAP = false;
@@ -67,9 +79,7 @@ String SoftIP, LocalIP;
 
 String MAC;
 long portTCP;
-
-bool flagClear = true;
-long timeStation = 5000;
+long timeStation = 7000;
 
 
 long udpPort = 4210;
@@ -100,6 +110,7 @@ void setup()
   Serial.begin(115200);
   delay(1000);
   idWebSite = 0;
+  isLogin = false;
   WiFi.disconnect();
   EEPROM.begin(512);
   delay(1000);
@@ -143,7 +154,7 @@ void setup()
   digitalWrite(LED,HIGH);
 }
 WiFiClient client ;
-long timeLogout = 20000;
+long timeLogout = 30000;
 long t=0;
 void loop()
 {
@@ -443,14 +454,14 @@ void ConnectWifi(long timeOut)
 {
   show("Connect to other Access Point");
   delay(1000);
-  int count = timeOut / 100;
+  int count = timeOut / 200;
   show("Connecting");
   show(staSSID);
   show(staPASS);
   WiFi.begin(staSSID.c_str(),staPASS.c_str());
   
   while (WiFi.status() != WL_CONNECTED && --count > 0) {
-    delay(100);
+    delay(200);
     Serial.print(".");
   }
   if (count > 0){
@@ -633,46 +644,72 @@ void GiaTriThamSo()
         show("Logout");
       }
       else if (Name.indexOf("txtSTAName") >= 0){
-        staSSID =  Value ;
+        if (Value != staSSID && Value.length() > 0){
+          staSSID =  Value ;
+          show("Set staSSID : " + staSSID);
+        }
       }
       else if (Name.indexOf("txtSTAPass") >= 0){
-        staPASS =  Value ;
+        if (Value != staPASS) {
+          staPASS =  Value ;
+          show("Set staPASS : " + staPASS);
+        }
       }
       else if (Name.indexOf("txtSTAIP") >= 0){
-        if (isValidStringIP(Value))
-          staIP =  Value ;
+        if (isValidStringIP(Value) && Value != staIP) {
+          staIP =  Value ; 
+          show("Set staIP : " + staIP);
+        }
       }
       else if (Name.indexOf("txtSTAGateway") >= 0){
-        if (isValidStringIP(Value))
+        if (isValidStringIP(Value) && Value != staGateway){
           staGateway =  Value ;
+          show("Set staGateway : " + staGateway);
+        }
       }
       else if (Name.indexOf("txtSTASunet") >= 0){
-        if (isValidStringIP(Value))
+        if (isValidStringIP(Value) && Value != staSubnet){
           staSubnet =  Value ;
+          show("Set apSSID : " + staSubnet);
+        }
       }
       else if (Name.indexOf("txtAPName") >= 0){
-        apSSID =  Value ;
+        if (Value != apSSID && Value.length() > 0){
+          apSSID =  Value ;
+          show("Set apSSID : " + apSSID);
+        }
       }
       else if (Name.indexOf("txtAPPass") >= 0){
-        staPASS =  Value ;
+        if (Value != apPASS){
+          apPASS =  Value ;
+          show("Set apPASS : " + apPASS);
+        }
       }
       else if (Name.indexOf("txtAPIP") >= 0){
-        if (isValidStringIP(Value))
+        if (isValidStringIP(Value) && Value != apIP) {
           apIP =  Value ;  
+          show("Set apIP : " + apIP);
+        }
       }
       else if (Name.indexOf("txtAPGateway") >= 0){
-        if (isValidStringIP(Value))
+        if (isValidStringIP(Value) && Value != apGateway){
           apGateway =  Value ;
+          show("Set apGateway : " + apGateway);
+         }
       }
       else if (Name.indexOf("APSubnet") >= 0){
-        if (isValidStringIP(Value))
+        if (isValidStringIP(Value) && Value != apSubnet){
           apSubnet =  Value ;
+          show("Set apSubnet : " + apSubnet);
+        }
       }
       else if (Name.indexOf("txtPortTCP") >= 0) {
-        portTCP =  atol(Value.c_str());
+        if (Value != String(portTCP)){
+          portTCP =  atol(Value.c_str());
+          show("Set portTCP : " + portTCP);
+        }
       }
-      else if (Name.indexOf("txtRestart") >= 0)
-      {
+      else if (Name.indexOf("txtRestart") >= 0){
         idWebSite = 2;
         show("Verify restart");
         show(Value);
