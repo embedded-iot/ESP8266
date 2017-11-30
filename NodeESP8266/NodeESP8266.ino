@@ -67,7 +67,11 @@ WiFiUDP Udp;
   #define AP_SUBNET_DEFAULT "255.255.255.0"
 #endif
 
+IPAddress broadCast;
+
+bool isServer =  true; 
 bool flagClear = false;
+bool flagRandomData = true;
 
 bool isLogin = false;
 bool isConnectAP = false;
@@ -151,11 +155,21 @@ void setup()
   // Setup the UDP port
   show("begin UDP port");
   Udp.begin(udpPort);
+
+  String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".255";
+  broadCast = convertStringToIPAddress(strBroadCast);
+  show("IP broadCast");
+  show(broadCast.toString());
   digitalWrite(LED,HIGH);
 }
 WiFiClient client ;
 long timeLogout = 30000;
-long t=0;
+long t = 0;
+long timeRandom = 10000;
+long t1 = 0;
+long intNumber = 0;
+String resultRF = "";
+bool flagForward = false;
 void loop()
 {
   server.handleClient();
@@ -163,7 +177,7 @@ void loop()
     isLogin = false;
     t = millis();
   }
-  if (digitalRead(RESET)==LOW)
+  if (digitalRead(RESET) == LOW)
   {
     //ConfigDefault();
     long t=TIME_LIMIT_RESET/100;
@@ -176,27 +190,40 @@ void loop()
       setup();
     }
   }
+  
+  #if RFTEST
+    resultRF = ListenRF();
+  #else 
+    if (millis() - t1 > timeRandom) {
+      resultRF = "#S#" + apSSID + "#" +String(intNumber++) + "#E#";
+      //show(resultRF);
+      t1 =  millis();
+    }
+    else resultRF = "";
+  #endif
+    
   receivedUDP = listenUDP();
+  
+      
   if (receivedUDP.length() > 0)
   {
     show(receivedUDP);
-    SendUdp("192.168.137.255", udpPort, receivedUDP);
-    receivedUDP = "";
+    SendUdp(broadCast.toString(), udpPort, receivedUDP);
   }
-  #if RFTEST
-    String resultRF = ListenRF();
-  #else 
-    
-    String resultRF = "";
-  #endif
+
   if (resultRF.length() > 0) 
   {
     digitalWrite(LED,LOW);
     delay(50);
     show(resultRF);
-    SendUdp("192.168.0.255", udpPort, resultRF);
+    SendUdp(broadCast.toString(), udpPort, resultRF);
     digitalWrite(LED,HIGH);
   }
+  
+  if (isServer && receivedUDP.length() > 0) {
+    resultRF = receivedUDP;
+  }
+  
   //client = tcpServer.available();
   if (!client.connected()) {
         // try to connect to a new client
@@ -210,9 +237,10 @@ void loop()
       if (resultRF.length() > 0) {
         digitalWrite(LED,LOW);
         show(resultRF);
-        client.println(resultRF.c_str());
+        if (!client.println(resultRF.c_str()))
+          client.stop();
+        else show("SEND OK");
         delay(50);
-        show("SEND OK");
         digitalWrite(LED,HIGH);
       }
   }
