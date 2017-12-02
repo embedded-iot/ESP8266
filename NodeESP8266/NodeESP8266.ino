@@ -17,6 +17,8 @@ ESP8266WebServer server(80);
 
 #define DEBUGGING
 #define RFTEST false
+#define RFCHANNEL 15
+
 #define ADDR 0
 #define ADDR_STASSID (ADDR)
 #define ADDR_STAPASS (ADDR_STASSID+20)
@@ -69,9 +71,8 @@ WiFiUDP Udp;
 
 IPAddress broadCast;
 
-bool isServer =  true; 
+bool isServer =  false; 
 bool flagClear = false;
-bool flagRandomData = true;
 
 bool isLogin = false;
 bool isConnectAP = false;
@@ -105,6 +106,7 @@ String listenUDP();
 IPAddress convertStringToIPAddress(String stringIP);
 String ContentVerifyRestart();
 String ContentLogin();
+String SendTRRFConfig();
 String ContentConfig();
 void GiaTriThamSo();
 
@@ -508,6 +510,7 @@ void ConnectWifi(long timeOut)
 void StartServer()
 {
   server.on("/", webConfig);
+  server.on("/rfconfig", webRFConfig);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
@@ -527,13 +530,12 @@ void webConfig() {
   }else html += ContentLogin();
   server.send ( 200, "text/html",html);
 }
-String SendTRWeb()
-{
-  String s="";
-//  for (int i=0;i<SoTiet;i++)
-//    s+="<tr ><td> "+String (i+1)+" </td><td> Tiết "+String (i+1)+"</td><td> "+ConvertLongToSringTime(TimeHoc[i][0])  +"- "+ ConvertLongToSringTime(TimeHoc[i][1] )+"</td></tr>";
-  return s;
+void webRFConfig() {
+  String html = Title();
+  html += ChannelRFConfig();
+  server.send ( 200, "text/html",html);
 }
+
 String Title(){
   String html = "<html>\
   <head>\
@@ -555,6 +557,9 @@ String Title(){
     .left {text-align: right}\
     .listBtn {text-align: center}\
     a {text-decoration: none;}\
+    table {width: 100%;}\
+    .column {width: 50%;text-align: center;}\
+    .noboder {border: none;}\
   </style>\
   </head>";
   return html;
@@ -641,14 +646,47 @@ String ContentConfig(){
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"?txtRefresh=true\">Refresh</a></button>\
           <button type=\"submit\" name=\"btnSave\" value=\"true\">Save</button>\
-          <button type=\"submit\"><a href=\"?txtRestart=true\">Restart</a>\
-          <button type=\"submit\"><a href=\"?txtLogout=true\">Logout</a>\
+          <button type=\"submit\"><a href=\"?txtRestart=true\">Restart</a></button>\
+          <button type=\"submit\"><a href=\"?txtLogout=true\">Logout</a></button>\
         </div>\
       </form>\
     </div>\
   </body>\
   </html>";
   return content;
+}
+
+String ChannelRFConfig(){
+  //SendTRRFConfig();
+  String content = "<body>\
+    <div class=\"head1\">\
+    <h1>Setting RF</h1>\
+    </div>\
+    <div class=\"content\">\
+      <form action=\"\" method=\"get\">\
+        <table><tr class=\"row\"><th>ID RF</th><th>NAME RF</th></tr>"+ SendTRRFConfig() +"</table>\
+        <br><hr>\
+        <div class=\"listBtn\">\
+          <button type=\"submit\"><a href=\"/rfconfig?\">Refresh</a></button>\
+          <button type=\"submit\">Save</button>\
+          <button type=\"submit\"><a href=\"/\">Login</a></button>\
+        </div>\
+      </form>\
+    </div>\
+  </body>\
+  </html>";
+  return content;
+}
+
+String SendTRRFConfig()
+{
+  String s="";
+  for (int i=0;i< RFCHANNEL ;i++) {
+    String id = (i < 10 ? "0" + String(i) : String(i));
+    s += "<tr class=\"row\"><td class=\"column\">"+ id +"</td><td class=\"column\"><input type=\"text\" class=\"input noboder\" maxlength=\"10\" placeholder=\"Tên bàn\" name=\"txtPortTCP\" value=\""+ id +"\" required></td></tr>";
+  }
+  //show(s);
+  return s;
 }
 void GiaTriThamSo()
 {
