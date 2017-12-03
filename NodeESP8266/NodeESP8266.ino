@@ -18,6 +18,8 @@ ESP8266WebServer server(80);
 #define DEBUGGING
 #define RFTEST false
 #define RFCHANNEL 15
+#define LENGTH_BUFFER_RF 10
+
 
 #define ADDR 0
 #define ADDR_STASSID (ADDR)
@@ -86,6 +88,8 @@ String MAC;
 long portTCP;
 long timeStation = 7000;
 
+String bufferRF[LENGTH_BUFFER_RF+1];
+String channelRF[RFCHANNEL+1];
 
 long udpPort = 4210;
 char incomingPacket[255];
@@ -108,6 +112,8 @@ String ContentVerifyRestart();
 String ContentLogin();
 String SendTRRFConfig();
 String ContentConfig();
+String webView();
+String SendTRViewHome();
 void GiaTriThamSo();
 
 
@@ -195,10 +201,17 @@ void loop()
   
   #if RFTEST
     resultRF = ListenRF();
+    String packet = EncodePacket(apSSID, data);
+    resultRF = packet;
+    pushBufferRF(resultRF);
   #else 
     if (millis() - t1 > timeRandom) {
-      resultRF = "#S#" + apSSID + "#" +String(intNumber++) + "#E#";
+      //resultRF = "#S#" + apSSID + "##VIP" +String(intNumber++) + "#E#";
+      String data = "VIP" +String(intNumber++);
+      
+      resultRF = EncodePacket(apSSID, data);
       //show(resultRF);
+      pushBufferRF(resultRF);
       t1 =  millis();
     }
     else resultRF = "";
@@ -256,6 +269,9 @@ void show(String s)
   #endif
 }
 
+String EncodePacket(String address, String data){
+  return "#S#" + address + "##" +data+ "#E#";
+}
 void GPIO()
 {
   show("GPIO");
@@ -270,6 +286,12 @@ void GPIO()
   pinMode(D2,INPUT_PULLUP); 
   pinMode(D3,INPUT_PULLUP); 
 
+}
+
+void ChannelRFDefault(){
+  for (int i=0;i< RFCHANNEL ; i++){
+     channelRF[i] = "VIP "+ String(i);
+  }
 }
 void ConfigNetwork(){
  // Fire up wifi station
@@ -424,7 +446,7 @@ void ConfigDefault()
   apSubnet = AP_SUBNET_DEFAULT;
   portTCP = PORT_TCP_DEFAULT;
 
-  
+  ChannelRFDefault();
   show("Config Default");
 }
 void WriteConfig()
@@ -511,6 +533,7 @@ void StartServer()
 {
   server.on("/", webConfig);
   server.on("/rfconfig", webRFConfig);
+  server.on("/viewhome", webViewHome);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
@@ -536,6 +559,13 @@ void webRFConfig() {
   server.send ( 200, "text/html",html);
 }
 
+void webViewHome() {
+  String html = Title();
+  html += webView();
+  server.send ( 200, "text/html",html);
+}
+
+
 String Title(){
   String html = "<html>\
   <head>\
@@ -560,6 +590,7 @@ String Title(){
     table {width: 100%;}\
     .column {width: 50%;text-align: center;}\
     .noboder {border: none;}\
+    .card-rf {background: yellow;color: red;font-size: 90px;text-align: center;}\
   </style>\
   </head>";
   return html;
@@ -687,6 +718,81 @@ String SendTRRFConfig()
   }
   //show(s);
   return s;
+}
+String webView(){
+  String content = "<body>\
+    <div class=\"head1\">\
+    <h1>HOME PAGE</h1>\
+    </div>\
+    <div class=\"card-rf\">"+ getData(bufferRF[0]) +"</div>\
+    <div class=\"content\">\
+    <form action=\"\" method=\"get\">\
+      <table>\
+      <tr class=\"row\"><th>ID</th><th>NAME RF</th></tr>"+ SendTRViewHome() +"\
+      </table>\
+      <br><hr>\
+      <div class=\"listBtn\">\
+      <button type=\"submit\"><a href=\"/login\">Login</a></button>\
+      </div>\
+    </form>\
+    <script type=\"text/javascript\">\
+      setInterval(function() {\
+      window.location.reload();\
+      }, 2000);\
+    </script>\
+    </div>\
+  </body>\
+  </html>";
+  return content;
+}
+String SendTRViewHome()
+{
+  String s="";
+  for (int i = 1;i< LENGTH_BUFFER_RF ;i++) {
+    String id = (i < 10 ? "0" + String(i) : String(i));
+    if (bufferRF[i].length() > 0)
+      s += "<tr class=\"row\"><td class=\"column\">"+ id + "-" + getAddress(bufferRF[i]) +"</td><td class=\"column\">"+ getData(bufferRF[i]) +"</td></tr>";
+  }
+  return s;
+}
+
+void pushBufferRF(String packet){
+//  if (isCheckPacket(packet) == false);
+//    return ;
+  int i1 = packet.indexOf("#S#");
+  int i2 = packet.indexOf("#E#");
+  if (i1 >= i2)
+    return ;
+  String tg[LENGTH_BUFFER_RF+1];
+  tg[0] = packet;
+  for (int i = 1 ; i< LENGTH_BUFFER_RF ; i++){
+    tg[i] = bufferRF[i-1];
+  }
+  for (int i = 0 ; i< LENGTH_BUFFER_RF ; i++){
+    bufferRF[i] = tg[i];
+  }
+}
+//getAddress("#S#apSSID##VIP 01#E#");
+//packet = "#S#apSSID#VIP 01#E#";
+// return VIP 01;
+String getData(String packet){
+  String s1 = "No data";
+  int i1 = packet.indexOf("##");
+  int i2 = packet.indexOf("#E#");
+  if (i2 > i1)
+    s1 = packet.substring(i1+2,i2);
+  return s1;
+}
+//getAddress("#S#apSSID##VIP 01#E#");
+//packet = "#S#apSSID##VIP 01#E#";
+// return VIP 01;
+String getAddress(String packet){
+  String s1 = "No Address";
+  int i1 = packet.indexOf("#S#");
+  int i2 = packet.indexOf("##");
+  if (i2 > i1)
+    s1 = packet.substring(i1+3,i2);
+  return s1;
 }
 void GiaTriThamSo()
 {
