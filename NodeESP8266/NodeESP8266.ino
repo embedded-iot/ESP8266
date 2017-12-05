@@ -14,9 +14,10 @@ ESP8266WebServer server(80);
 #define D2 12
 #define D3 13
 #define LED 2
+#define SERVER_PIN A0
 
 #define DEBUGGING
-#define RFTEST false
+#define RFTEST true
 #define RFCHANNEL 15
 #define LENGTH_BUFFER_RF 10
 
@@ -35,8 +36,10 @@ ESP8266WebServer server(80);
 #define ADDR_APSUBNET (ADDR_APGATEWAY+20)
 
 #define ADDR_PORTTCP (ADDR_APSUBNET+20)
+#define ADDR_RFCONFIG (ADDR_PORTTCP+20)
 
 #define ID_DEFAULT 1
+
 
 
 #define TIME_LIMIT_RESET 3000
@@ -127,7 +130,12 @@ void setup()
   EEPROM.begin(512);
   delay(1000);
   GPIO();
-  if (EEPROM.read(255) != 255 || flagClear){
+  if (analogRead(SERVER_PIN) < 200) {
+    isServer = true;
+    show("I am server!");
+  }
+    
+  if (EEPROM.read(500) != 255 || flagClear){
     ClearEEPROM();
     ConfigDefault();
     WriteConfig();
@@ -177,6 +185,7 @@ long timeRandom = 10000;
 long t1 = 0;
 long intNumber = 0;
 String resultRF = "";
+int idChannel = -1;
 bool flagForward = false;
 void loop()
 {
@@ -195,28 +204,37 @@ void loop()
     if (t < 0){
       show("RESET");
       ConfigDefault();
+      WriteConfig();
       setup();
     }
   }
   
   #if RFTEST
-    resultRF = ListenRF();
-    String packet = EncodePacket(apSSID, data);
-    resultRF = packet;
-    pushBufferRF(resultRF);
+    //resultIdRF = ListenRF();
+    idChannel = ListenIdRF();
+   
   #else 
     if (millis() - t1 > timeRandom) {
-      //resultRF = "#S#" + apSSID + "##VIP" +String(intNumber++) + "#E#";
-      String data = "VIP" +String(intNumber++);
+      idChannel = random(RFCHANNEL);
+//      //resultRF = "#S#" + apSSID + "##VIP" +String(intNumber++) + "#E#";
+//      String data = getStringByIdChannelRF(rd);
+//      resultRF = EncodePacket(apSSID, data);
+//      //show(resultRF);
+//      pushBufferRF(resultRF);
       
-      resultRF = EncodePacket(apSSID, data);
-      //show(resultRF);
-      pushBufferRF(resultRF);
       t1 =  millis();
     }
     else resultRF = "";
   #endif
-    
+
+  if (idChannel != -1) {
+    String data = getStringByIdChannelRF(idChannel);
+    String packet = EncodePacket(apSSID, data);
+    resultRF = packet;
+    pushBufferRF(resultRF);
+    idChannel = -1;
+  }else resultRF = "";
+  
   receivedUDP = listenUDP();
   
       
@@ -293,6 +311,12 @@ void ChannelRFDefault(){
      channelRF[i] = "VIP "+ String(i);
   }
 }
+
+String getStringByIdChannelRF(int id){
+  if (id >=0 && id < RFCHANNEL)
+    return channelRF[id];
+  return "";
+}
 void ConfigNetwork(){
  // Fire up wifi station
  show("Station configuration ... ");
@@ -350,27 +374,7 @@ String ListenRF()
   return "";
 }
 
-void SendUdp(String address , long localUdpPort, String data){
- Udp.beginPacket(address.c_str(), localUdpPort);
- Udp.write(data.c_str());
- Udp.endPacket();
-}
-String listenUDP(){
- int packetSize = Udp.parsePacket();
- if (packetSize)
- {
-  show("Received UDP packet");
-  show("Received" + String(packetSize) + "bytes form "+ Udp.remoteIP().toString() + " ,port " + Udp.remotePort());
-  int len = Udp.read(incomingPacket, 255);
-  if (len > 0){
-   incomingPacket[len] = 0;
-  }
-  Serial.printf("UDP packet contents: %s\n", incomingPacket);
-  show("UDP packet:"+ String(incomingPacket));
-  return String(incomingPacket);
- }
- return "";
-}
+
 int ScanRF()
 {
   if (digitalRead(D0)==HIGH)
@@ -394,7 +398,46 @@ int ScanRF()
   }
   return -1;
 }
-
+int RFPIN[4] = {D0, D1, D2, D3};
+int ListenIdRF()
+{
+  int Di = -1;
+  if (digitalRead(VT) == HIGH)
+  {
+    show("VT HIGH");
+    while (digitalRead(VT) == HIGH){
+       Di = -1;
+       for (int i = 0;i<4; i++){
+         if (digitalRead(RFPIN[i]) == HIGH) {
+          Di += pow(2, i);
+         }
+       }
+    }
+    show(String(Di));
+  }
+  return Di;
+}
+void SendUdp(String address , long localUdpPort, String data){
+ Udp.beginPacket(address.c_str(), localUdpPort);
+ Udp.write(data.c_str());
+ Udp.endPacket();
+}
+String listenUDP(){
+ int packetSize = Udp.parsePacket();
+ if (packetSize)
+ {
+  show("Received UDP packet");
+  show("Received" + String(packetSize) + "bytes form "+ Udp.remoteIP().toString() + " ,port " + Udp.remotePort());
+  int len = Udp.read(incomingPacket, 255);
+  if (len > 0){
+   incomingPacket[len] = 0;
+  }
+  Serial.printf("UDP packet contents: %s\n", incomingPacket);
+  show("UDP packet:"+ String(incomingPacket));
+  return String(incomingPacket);
+ }
+ return "";
+}
 void ClearEEPROM()
 {
   // write a 255 to all 512 bytes of the EEPROM
@@ -462,6 +505,12 @@ void WriteConfig()
   SaveStringToEEPROM(apGateway, ADDR_APGATEWAY);
   SaveStringToEEPROM(apSubnet, ADDR_APSUBNET);
   SaveStringToEEPROM(String(portTCP), ADDR_PORTTCP);
+
+  for (int i = 0; i< RFCHANNEL; i++)
+  {
+    SaveStringToEEPROM(channelRF[i], ADDR_RFCONFIG + i*10);
+  }
+  
   show("Write Config");
 }
 void ReadConfig()
@@ -482,6 +531,13 @@ void ReadConfig()
   show(str);
   str = "Access Point: \n" + apSSID + "\n" + apPASS + "\n" + apIP + "\n" + apGateway + "\n" + apSubnet; 
   show(str);
+  show("Channel RF:");
+  for (int i = 0; i< RFCHANNEL; i++)
+  {
+    channelRF[i] = ReadStringFromEEPROM(ADDR_RFCONFIG + i*10);
+    show(channelRF[i]);
+  }
+  
 }
 
 void AccessPoint()
@@ -533,7 +589,9 @@ void StartServer()
 {
   server.on("/", webConfig);
   server.on("/rfconfig", webRFConfig);
-  server.on("/viewhome", webViewHome);
+  if (isServer){
+    server.on("/home", webViewHome);
+  }
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
@@ -688,7 +746,7 @@ String ContentConfig(){
 }
 
 String ChannelRFConfig(){
-  //SendTRRFConfig();
+  GiaTriThamSo();
   String content = "<body>\
     <div class=\"head1\">\
     <h1>Setting RF</h1>\
@@ -714,7 +772,7 @@ String SendTRRFConfig()
   String s="";
   for (int i=0;i< RFCHANNEL ;i++) {
     String id = (i < 10 ? "0" + String(i) : String(i));
-    s += "<tr class=\"row\"><td class=\"column\">"+ id +"</td><td class=\"column\"><input type=\"text\" class=\"input noboder\" maxlength=\"10\" placeholder=\"Tên bàn\" name=\"txtPortTCP\" value=\""+ id +"\" required></td></tr>";
+    s += "<tr class=\"row\"><td class=\"column\">"+ id +"</td><td class=\"column\"><input type=\"text\" class=\"input noboder\" maxlength=\"10\" placeholder=\"Tên bàn\" name=\"txtChannelRF"+id+"\" value=\""+ channelRF[i] +"\" required></td></tr>";
   }
   //show(s);
   return s;
@@ -915,6 +973,19 @@ void GiaTriThamSo()
         isLogin = false;
       }
     }
+    if (Name.indexOf("txtChannelRF") >=0){
+      int i1 = Name.indexOf("RF");
+      if (i1 > 0){
+        String strId = Name.substring(i1 + 2,i1 + 4);
+        int id = strId.toInt();
+        if (Value != channelRF[id]) {
+          channelRF[id] = Value;
+          WriteConfig();
+          show("Save config");
+        }
+      }
+    }
+    
     Name = "";
     Value = "";
   }
