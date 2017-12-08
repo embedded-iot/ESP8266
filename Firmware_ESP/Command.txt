@@ -1,0 +1,25 @@
+/**********************************************
+Firmware ESP8266 v1-12
+Vision 1.0
+Author : Nguyen Van Quan
+Configuration Default :
+  Serial baud rate : 9600 
+  TCP SERVER PORT 333
+  ACCESS POINT
+Command AT:
+- AT 
+- AT+MODE?
+- AT+MODE=[mode] 
+- AT+CWJAP?
+- AT+CWJAP="SSID","Password"
+- AT+CIFSR
+- AT+CWSAP?
+- AT+CWSAP="SSID","Password"
+- AT+HTTP="request"
+- AT+CIPCLOSE
+- AT+CIPSEND="data send"
+Response: 
+- OK : Command successfuly.
+- FAIL: Command not successfuly.
+- Other.
+ *********************************************/
