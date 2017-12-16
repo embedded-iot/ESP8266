@@ -177,6 +177,15 @@ void setup()
   show("IP broadCast");
   show(broadCast.toString());
   digitalWrite(LED,HIGH);
+  delay(1000);
+  // Notify: Connect AP success. 
+  if (isConnectAP == true){
+    int i=0;
+    while (i++ < 3) {
+      digitalWrite(LED,LOW);delay(500);
+      digitalWrite(LED,HIGH);delay(500);
+    }
+  }
 }
 WiFiClient client ;
 long timeLogout = 30000;
@@ -255,6 +264,7 @@ void loop()
   
   if (isServer && receivedUDP.length() > 0) {
     resultRF = receivedUDP;
+    pushBufferRF(resultRF);
   }
   
   //client = tcpServer.available();
@@ -402,10 +412,12 @@ int RFPIN[4] = {D0, D1, D2, D3};
 int ListenIdRF()
 {
   int Di = -1;
+ 
   if (digitalRead(VT) == HIGH)
   {
+    int timeOut = millis();
     show("VT HIGH");
-    while (digitalRead(VT) == HIGH){
+    while (digitalRead(VT) == HIGH && millis() - timeOut < 2000){
        Di = -1;
        for (int i = 0;i<4; i++){
          if (digitalRead(RFPIN[i]) == HIGH) {
