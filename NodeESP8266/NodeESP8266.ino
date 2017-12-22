@@ -17,7 +17,7 @@ ESP8266WebServer server(80);
 #define SERVER_PIN A0
 
 #define DEBUGGING
-#define RFTEST true
+#define RFTEST false
 #define RFCHANNEL 15
 #define LENGTH_BUFFER_RF 10
 
@@ -92,6 +92,7 @@ long portTCP;
 long timeStation = 7000;
 
 String bufferRF[LENGTH_BUFFER_RF+1];
+int flagRF[LENGTH_BUFFER_RF+1];
 String channelRF[RFCHANNEL+1];
 
 long udpPort = 4210;
@@ -179,14 +180,17 @@ void setup()
   digitalWrite(LED,HIGH);
   delay(1000);
   // Notify: Connect AP success. 
-  if (isConnectAP == true){
+  if (isConnectAP == false){
     int i=0;
     while (i++ < 3) {
       digitalWrite(LED,LOW);delay(500);
       digitalWrite(LED,HIGH);delay(500);
     }
   }
+  show("End Setup()");
+  delay(2000);
 }
+
 WiFiClient client ;
 long timeLogout = 30000;
 long t = 0;
@@ -261,11 +265,11 @@ void loop()
     SendUdp(broadCast.toString(), udpPort, resultRF);
     digitalWrite(LED,HIGH);
   }
-  
-  if (isServer && receivedUDP.length() > 0) {
-    resultRF = receivedUDP;
-    pushBufferRF(resultRF);
-  }
+  // Nếu là server thì hiển thị dữ liệu của cả những nút con
+//  if (isServer && receivedUDP.length() > 0) {
+//    resultRF = receivedUDP;
+//    pushBufferRF(resultRF);
+//  }
   
   //client = tcpServer.available();
   if (!client.connected()) {
@@ -275,7 +279,13 @@ void loop()
       // read data from the connected client
       if (client.available() > 0) {
         String stringClient = client.readString();
-        show("+IPD:" + stringClient);  
+        stringClient += "OK";
+        if (stringClient.indexOf("#S#") >= 0) {
+          pushBufferRF(stringClient);
+          SendUdp(broadCast.toString(), udpPort, stringClient);
+          show("+IPD:" + stringClient);  
+        }
+        else show("+IPD:" + stringClient);  
       }
       if (resultRF.length() > 0) {
         digitalWrite(LED,LOW);
@@ -547,6 +557,7 @@ void ReadConfig()
   for (int i = 0; i< RFCHANNEL; i++)
   {
     channelRF[i] = ReadStringFromEEPROM(ADDR_RFCONFIG + i*10);
+    flagRF[i] = 0;
     show(channelRF[i]);
   }
   
@@ -661,6 +672,7 @@ String Title(){
     .column {width: 50%;text-align: center;}\
     .noboder {border: none;}\
     .card-rf {background: yellow;color: red;font-size: 90px;text-align: center;}\
+    .tr-active {background: #0095ff !important;}\
   </style>\
   </head>";
   return html;
@@ -821,26 +833,52 @@ String SendTRViewHome()
   for (int i = 1;i< LENGTH_BUFFER_RF ;i++) {
     String id = (i < 10 ? "0" + String(i) : String(i));
     if (bufferRF[i].length() > 0)
-      s += "<tr class=\"row\"><td class=\"column\">"+ id + "-" + getAddress(bufferRF[i]) +"</td><td class=\"column\">"+ getData(bufferRF[i]) +"</td></tr>";
+      s += "<tr class=\"row" + isTrActive(i) + "\"><td class=\"column\">"+ id + "-" + getAddress(bufferRF[i]) +"</td><td class=\"column\">"+ getData(bufferRF[i]) +"</td></tr>";
   }
   return s;
 }
 
+String isTrActive(int id) {
+  if (flagRF[id] == 1 )
+    return " tr-active";
+  return "";
+}
 void pushBufferRF(String packet){
 //  if (isCheckPacket(packet) == false);
 //    return ;
   int i1 = packet.indexOf("#S#");
   int i2 = packet.indexOf("#E#");
-  if (i1 >= i2)
+  if (i1 >= i2){
+    show("Error packet : " + packet);
     return ;
+  }
+    
+  if (packet.indexOf("OK") > 0) {
+    String nameAP = getAddress(packet);
+    String strData = getData(packet);
+    for (int i = 0 ; i< LENGTH_BUFFER_RF ; i++){
+      if (bufferRF[i].indexOf(nameAP) >= 0 && bufferRF[i].indexOf(strData+"#E") >= 0) {
+        flagRF[i] = 1;
+        show(bufferRF[i] + "=>Accept!");
+      }
+    }
+    return ;
+  }
+
   String tg[LENGTH_BUFFER_RF+1];
+  int i = 0;
+  int tgFlag[LENGTH_BUFFER_RF+1];
+
   tg[0] = packet;
-  for (int i = 1 ; i< LENGTH_BUFFER_RF ; i++){
+  tgFlag[0] = 0;
+  for (i = 1 ; i< LENGTH_BUFFER_RF ; i++){
     tg[i] = bufferRF[i-1];
+    tgFlag[i] = flagRF[i-1];
   }
-  for (int i = 0 ; i< LENGTH_BUFFER_RF ; i++){
+  for (i = 0 ; i< LENGTH_BUFFER_RF ; i++){
     bufferRF[i] = tg[i];
-  }
+    flagRF[i] = tgFlag[i];
+  } 
 }
 //getAddress("#S#apSSID##VIP 01#E#");
 //packet = "#S#apSSID#VIP 01#E#";
