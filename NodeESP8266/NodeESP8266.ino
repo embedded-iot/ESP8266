@@ -17,7 +17,7 @@ ESP8266WebServer server(80);
 #define SERVER_PIN A0
 
 #define DEBUGGING
-#define RFTEST false
+#define RFTEST true
 #define RFCHANNEL 15
 #define LENGTH_BUFFER_RF 10
 
@@ -255,6 +255,7 @@ void loop()
   {
     show(receivedUDP);
     SendUdp(broadCast.toString(), udpPort, receivedUDP);
+    pushBufferRF(receivedUDP);
   }
 
   if (resultRF.length() > 0) 
@@ -806,7 +807,7 @@ String webView(){
     <div class=\"head1\">\
     <h1>HOME PAGE</h1>\
     </div>\
-    <div class=\"card-rf\">"+ getData(bufferRF[0]) +"</div>\
+    <div class=\"card-rf " + isTrActive(0) + "\">"+ getData(bufferRF[0]) +"</div>\
     <div class=\"content\">\
     <form action=\"\" method=\"get\">\
       <table>\
