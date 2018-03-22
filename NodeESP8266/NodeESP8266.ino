@@ -8,13 +8,16 @@
 ESP8266WebServer server(80);
 
 #define RESET 4 
-#define VT 5
+#define VT A0
+// #define RESET 4 
+// #define VT 5
 #define D0 16
 #define D1 14
 #define D2 12
 #define D3 13
 #define LED 2
-#define SERVER_PIN A0
+// #define SERVER_PIN A0 
+#define SERVER_PIN 5 
 
 #define DEBUGGING
 #define RFTEST true
@@ -123,17 +126,18 @@ void GiaTriThamSo();
 
 void setup()
 {
+  delay(1000);
   Serial.begin(115200);
   delay(1000);
   idWebSite = 0;
   isLogin = false;
   WiFi.disconnect();
   EEPROM.begin(512);
-  delay(1000);
   GPIO();
-  if (analogRead(SERVER_PIN) < 200) {
+  if (digitalRead(SERVER_PIN) == LOW) {
     isServer = true;
     show("I am server!");
+    delay(2000);
   }
     
   if (EEPROM.read(500) != 255 || flagClear){
@@ -319,7 +323,7 @@ void GPIO()
   pinMode(LED,OUTPUT);
   digitalWrite(LED,LOW);
   pinMode(RESET,INPUT_PULLUP);
-  pinMode(VT,INPUT_PULLUP); 
+  pinMode(SERVER_PIN,INPUT_PULLUP); 
   pinMode(D0,INPUT_PULLUP); 
   pinMode(D1,INPUT_PULLUP); 
   pinMode(D2,INPUT_PULLUP); 
@@ -376,7 +380,7 @@ bool isValidStringIP(String strIP){
 String ListenRF()
 {
   int Di = -1;
-  if (digitalRead(VT) == HIGH)
+  if (analogRead(VT) > 500)
   {
     show("VT HIGH");
     Di = ScanRF();
@@ -424,11 +428,11 @@ int ListenIdRF()
 {
   int Di = -1;
  
-  if (digitalRead(VT) == HIGH)
+  if (analogRead(VT) > 500)
   {
     int timeOut = millis();
     show("VT HIGH");
-    while (digitalRead(VT) == HIGH && millis() - timeOut < 2000){
+    while (analogRead(VT) > 500 && millis() - timeOut < 2000){
        Di = -1;
        for (int i = 0;i<4; i++){
          if (digitalRead(RFPIN[i]) == HIGH) {
