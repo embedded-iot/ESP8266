@@ -219,7 +219,8 @@ void loop()
       delay(100);
     }
     if (t < 0){
-      show("RESET");
+      show("RESET DEFAULT CONFIG");
+      while (digitalRead(RESET)==LOW);
       ConfigDefault();
       WriteConfig();
       setup();
