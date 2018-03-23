@@ -41,39 +41,38 @@ ESP8266WebServer server(80);
 #define ADDR_PORTTCP (ADDR_APSUBNET+20)
 #define ADDR_RFCONFIG (ADDR_PORTTCP+20)
 
-#define ID_DEFAULT 1
-
-
+#define ID_DEFAULT 9
+#define NAME_DEFAULT "MBELL"
 
 #define TIME_LIMIT_RESET 3000
 #define PORT_TCP_DEFAULT 333
 // Start a TCP Server on port 333
 WiFiServer tcpServer(PORT_TCP_DEFAULT);
-#define PORT_UDP_DEFAULT 4210
+#define PORT_UDP_DEFAULT 333
 WiFiUDP Udp;
 
 #define PTRO1
 #ifdef  PTRO
   #define STA_SSID_DEFAULT "G"
   #define STA_PASS_DEFAULT "132654789"
-  #define AP_SSID_DEFAULT "AP"+String(ID_DEFAULT)
+  #define AP_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT)
   #define AP_PASS_DEFAULT ""
   #define STA_IP_DEFAULT "192.168.0.122"
   #define STA_GATEWAY_DEFAULT "192.168.0.1"
   #define STA_SUBNET_DEFAULT "255.255.255.0"
-  #define AP_IP_DEFAULT "192.168.4.1"
-  #define AP_GATEWAY_DEFAULT "192.168.4.1"
+  #define AP_IP_DEFAULT "192.168." + String(ID_DEFAULT) + ".1"
+  #define AP_GATEWAY_DEFAULT "192.168." + String(ID_DEFAULT) + ".1"
   #define AP_SUBNET_DEFAULT "255.255.255.0"
 #else 
-  #define STA_SSID_DEFAULT "AP02"
-  #define STA_PASS_DEFAULT "12345678"
-  #define AP_SSID_DEFAULT "AP"+String(ID_DEFAULT)
+  #define STA_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT - 1)
+  #define STA_PASS_DEFAULT ""
+  #define AP_SSID_DEFAULT NAME_DEFAULT +String(ID_DEFAULT)
   #define AP_PASS_DEFAULT ""
-  #define STA_IP_DEFAULT "192.168.137.122"
-  #define STA_GATEWAY_DEFAULT "192.168.137.1"
+  #define STA_IP_DEFAULT "192.168." + String(ID_DEFAULT - 1) + ".122"
+  #define STA_GATEWAY_DEFAULT "192.168." + String(ID_DEFAULT - 1) + ".1"
   #define STA_SUBNET_DEFAULT "255.255.255.0"
-  #define AP_IP_DEFAULT "192.168.4.1"
-  #define AP_GATEWAY_DEFAULT "192.168.4.1"
+  #define AP_IP_DEFAULT "192.168." + String(ID_DEFAULT) + ".1"
+  #define AP_GATEWAY_DEFAULT "192.168." + String(ID_DEFAULT) + ".1"
   #define AP_SUBNET_DEFAULT "255.255.255.0"
 #endif
 
@@ -126,9 +125,8 @@ void GiaTriThamSo();
 
 void setup()
 {
-  delay(1000);
+  delay(500);
   Serial.begin(115200);
-  delay(1000);
   idWebSite = 0;
   isLogin = false;
   WiFi.disconnect();
@@ -137,7 +135,6 @@ void setup()
   if (digitalRead(SERVER_PIN) == LOW) {
     isServer = true;
     show("I am server!");
-    delay(2000);
   }
     
   if (EEPROM.read(500) != 255 || flagClear){
@@ -185,11 +182,7 @@ void setup()
   delay(1000);
   // Notify: Connect AP success. 
   if (isConnectAP == false){
-    int i=0;
-    while (i++ < 3) {
-      digitalWrite(LED,LOW);delay(500);
-      digitalWrite(LED,HIGH);delay(500);
-    }
+    blinkLed(3,500);
   }
   show("End Setup()");
   delay(2000);
@@ -204,6 +197,10 @@ long intNumber = 0;
 String resultRF = "";
 int idChannel = -1;
 bool flagForward = false;
+
+long tStation = 0;
+long timeReconectToOtherAP = 10 * 60 * 1000; // 10 phut
+
 void loop()
 {
   server.handleClient();
@@ -211,6 +208,22 @@ void loop()
     isLogin = false;
     t = millis();
   }
+
+  if (isConnectAP == false && millis() - tStation > timeReconectToOtherAP) {
+    show("Reconnect To Other AP - " + staSSID);
+    digitalWrite(LED,LOW);
+    ConnectWifi(timeStation);
+    digitalWrite(LED,HIGH);
+    delay(2000);
+    if (isConnectAP == false){
+      blinkLed(3,500);
+      show("Connected To Other AP - " + staSSID);
+    } else {
+      show("Not connected To Other AP - " + staSSID);
+    }
+    tStation = millis();
+  }
+
   if (digitalRead(RESET) == LOW)
   {
     //ConfigDefault();
@@ -220,7 +233,7 @@ void loop()
     }
     if (t < 0){
       show("RESET DEFAULT CONFIG");
-      while (digitalRead(RESET)==LOW);
+      // while (digitalRead(RESET)==LOW);
       ConfigDefault();
       WriteConfig();
       setup();
@@ -313,6 +326,14 @@ void show(String s)
   #endif
 }
 
+
+void blinkLed(int numberRepeat, long tdelay) {
+  int i=0;
+  while (i++ < numberRepeat) {
+    digitalWrite(LED,LOW);delay(tdelay);
+    digitalWrite(LED,HIGH);delay(tdelay);
+  }
+}
 String EncodePacket(String address, String data){
   return "#S#" + address + "##" +data+ "#E#";
 }
@@ -345,14 +366,14 @@ String getStringByIdChannelRF(int id){
 }
 void ConfigNetwork(){
  // Fire up wifi station
- show("Station configuration ... ");
- IPAddress STAlocal_IP = convertStringToIPAddress(staIP);
- IPAddress STAgateway = convertStringToIPAddress(staGateway);
- IPAddress STAsubnet = convertStringToIPAddress(staSubnet);
- show(STAlocal_IP.toString());
- show(STAgateway.toString());
- show(STAsubnet.toString());
- show(WiFi.config(STAlocal_IP, STAgateway, STAsubnet) ? "OK" : "Failed!");
+//  show("Station configuration ... ");
+//  IPAddress STAlocal_IP = convertStringToIPAddress(staIP);
+//  IPAddress STAgateway = convertStringToIPAddress(staGateway);
+//  IPAddress STAsubnet = convertStringToIPAddress(staSubnet);
+//  show(STAlocal_IP.toString());
+//  show(STAgateway.toString());
+//  show(STAsubnet.toString());
+//  show(WiFi.config(STAlocal_IP, STAgateway, STAsubnet) ? "OK" : "Failed!");
  // Configure the Soft Access Point. Somewhat verbosely... (for completeness sake)
  show("Soft-AP configuration ... ");
  IPAddress APlocal_IP = convertStringToIPAddress(apIP);
@@ -587,6 +608,7 @@ void AccessPoint()
   show(MAC);
 }
 
+
 void ConnectWifi(long timeOut)
 {
   show("Connect to other Access Point");
@@ -607,12 +629,15 @@ void ConnectWifi(long timeOut)
     LocalIP = ""+(String)myIP[0] + "." + (String)myIP[1] + "." +(String)myIP[2] + "." +(String)myIP[3];
     show("Local IP :"); 
     show(LocalIP);
+    staIP =  LocalIP;
+    apGateway = staIP.substring(0,staIP.lastIndexOf(".")) + ".1";
     isConnectAP = true;
   }else {
     isConnectAP = false;
     show("Disconnect");
   }
 }
+
 
 void StartServer()
 {
@@ -709,9 +734,9 @@ String ContentLogin(){
     <div class=\"content\">\
       <form action=\"\" method=\"get\">\
         <div class=\"left\">Name Access Point </div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi\" name=\"txtNameAP\" required></div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi\" name=\"txtNameAP\" value=\""+apSSID+"\" required></div>\
         <div class=\"left\">Password Port TCP</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Cổng TCP\" name=\"txtPassPortTCP\" required></div>\
+        <div class=\"right\">: <input class=\"input\" type=\"password\" placeholder=\"Mat khau\" name=\"txtPassPortTCP\" value=\"\" required></div>\
         <div class=\"listBtn\">\
       <button type=\"submit\">Login</button></div>\
       </form>\
@@ -720,7 +745,16 @@ String ContentLogin(){
   </html>";
   return content;
 }
+String DisplayStationIP() {
+  String html;
+  if (isConnectAP) {
+    return "<div class=\"left\">AP IP</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" disabled name=\"txtSTAIP\" value=\""+staIP+"\"></div>";
+  }
+  return "";
+}
 String ContentConfig(){
+  String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".255";
   String content = "<body>\
     <div class=\"head1\">\
       <h1>Setting config</h1>\
@@ -732,12 +766,7 @@ String ContentConfig(){
         <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi\" name=\"txtSTAName\" value=\""+staSSID+"\" required></div>\
         <div class=\"left\">Password Access Point</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"Mật khấu wifi\" name=\"txtSTAPass\" value=\""+staPASS+"\"></div>\
-        <div class=\"left\">AP IP</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtSTAIP\" value=\""+staIP+"\"></div>\
-        <div class=\"left\">Gateway</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtSTAGateway\" value=\""+staGateway+"\"></div>\
-        <div class=\"left\">Subnet</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtSTASunet\" value=\""+staSubnet+"\"></div>\
+        " + DisplayStationIP() + "\
         <div class=\"left\">Status</div>\
         <div class=\"right\">: "+(isConnectAP == true ? "Connected" : "Disconnect")+"</div>\
         <div class=\"subtitle\">Access Point mode (This is a Access Point)</div>\
@@ -746,21 +775,16 @@ String ContentConfig(){
         <div class=\"left\">Password</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"Mật khấu wifi phát ra\" name=\"txtAPPass\" value=\""+apPASS+"\"></div>\
         <div class=\"left\">Soft IP</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtAPIP\" value=\""+apIP+"\"></div>\
-        <div class=\"left\">Gateway</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtAPGateway\" value=\""+apGateway+"\"></div>\
-        <div class=\"left\">Subnet</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"APSubnet\" value=\""+apSubnet+"\"></div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtAPIP\" disabled value=\""+apIP+"\"></div>\
         <div class=\"left\">MAC Address</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"xx-xx-xx-xx-xx-xx\" disabled value=\""+MAC+"\"></div>\
         <div class=\"subtitle\">TCP/UDP Server</div>\
         <div class=\"left\">TCP PORT</div>\
         <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" disabled value=\""+String(PORT_TCP_DEFAULT)+"\" ></div>\
+        <div class=\"left\">IP Broadcast</div>\
+        <div class=\"right\">: <input min=\"0\" class=\"input\" disabled value=\""+ strBroadCast +"\" ></div>\
         <div class=\"left\">UPD PORT</div>\
         <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" disabled value=\""+String(PORT_UDP_DEFAULT)+"\" ></div>\
-        <div class=\"subtitle\">Login webconfig</div>\
-        <div class=\"left\">Pass login</div>\
-        <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" placeholder=\"1234\" name=\"txtPortTCP\" value=\""+String(portTCP)+"\" required></div>\
         <hr>\
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"?txtRefresh=true\">Refresh</a></button>\
@@ -961,15 +985,28 @@ void GiaTriThamSo()
       }
       else if (Name.indexOf("txtAPName") >= 0){
         if (Value != apSSID && Value.length() > 0){
-          apSSID =  Value ;
-          show("Set apSSID : " + apSSID);
+          String keyEnd = Value.substring(Value.length() - 1, Value.length());
+          if ( keyEnd > "0" && keyEnd <= "9") {
+            apSSID =  Value ;
+            show("Set apSSID : " + apSSID);
+            show("Auto gen IP:");
+            apIP = apGateway = "192.168." + keyEnd + ".1";
+            show(apIP);
+          } else {
+            show("apSSID is invalid.");
+          }
         }
       }
       else if (Name.indexOf("txtAPPass") >= 0){
         if (Value != apPASS){
-          apPASS =  Value ;
-          show("Set apPASS : " + apPASS);
-        }
+          if (Value.length() >= 8) { // Length password >= 8 
+            apPASS =  Value ;
+            show("Set apPASS : " + apPASS);
+          } else {
+            show("txtAPPass is invalid (Value.length() >= 8 && Value != apPASS)");
+          }
+          
+        } 
       }
       else if (Name.indexOf("txtAPIP") >= 0){
         if (isValidStringIP(Value) && Value != apIP) {
@@ -1020,7 +1057,7 @@ void GiaTriThamSo()
       else if (Name.indexOf("txtPassPortTCP") >= 0)
         PassWord =  Value ;
 
-      if (UserName.equals(apSSID) && PassWord.equals(String(portTCP))){
+      if (UserName.equals(apSSID) && PassWord.equals(String(apSSID))){
         isLogin = true;
         idWebSite = 1;
         show("Login == true");
