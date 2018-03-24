@@ -172,10 +172,10 @@ void setup()
   
   // Setup the UDP port
   if (isConnectAP == true){
-    show("begin UDP port");
-    Udp.begin(udpPort);
+   
   }
-
+  show("begin UDP port");
+  Udp.begin(udpPort);
   String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".255";
   broadCast = convertStringToIPAddress(strBroadCast);
   show("IP broadCast");
@@ -289,10 +289,10 @@ void loop()
     digitalWrite(LED,HIGH);
   }
   // Nếu là server thì hiển thị dữ liệu của cả những nút con
-//  if (isServer && receivedUDP.length() > 0) {
-//    resultRF = receivedUDP;
-//    pushBufferRF(resultRF);
-//  }
+  if (isServer && receivedUDP.length() > 0) {
+    resultRF = receivedUDP;
+    pushBufferRF(resultRF);
+  }
   
   //client = tcpServer.available();
   if (!client.connected()) {
