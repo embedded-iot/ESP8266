@@ -79,7 +79,7 @@ WiFiUDP Udp;
 IPAddress broadCast;
 
 bool isServer =  false; 
-bool flagClear = false;
+bool flagClear = true;
 
 bool isLogin = false;
 bool isConnectAP = false;
@@ -211,7 +211,7 @@ void loop()
     t = millis();
   }
 
-  if (isConnectAP == false && millis() - tStation > timeReconectToOtherAP) {
+  if (WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
     show("Reconnect To Other AP - " + staSSID);
     digitalWrite(LED,LOW);
     ConnectWifi(timeStation);
