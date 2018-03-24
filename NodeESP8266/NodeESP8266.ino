@@ -48,7 +48,7 @@ ESP8266WebServer server(80);
 #define PORT_TCP_DEFAULT 333
 // Start a TCP Server on port 333
 WiFiServer tcpServer(PORT_TCP_DEFAULT);
-#define PORT_UDP_DEFAULT 333
+#define PORT_UDP_DEFAULT 4210
 WiFiUDP Udp;
 
 #define PTRO1
@@ -152,7 +152,7 @@ void setup()
   //ConnectWifi(4000);
   //isConnectAP
   //AccessPoint();
-  delay(2000);
+  delay(1000);
   ConnectWifi(timeStation); 
   Serial.println("Begin TCP Server");
   tcpServer.begin(); // Start the TCP server port 333
@@ -171,8 +171,10 @@ void setup()
   StartServer();
   
   // Setup the UDP port
-  show("begin UDP port");
-  Udp.begin(udpPort);
+  if (isConnectAP == true){
+    show("begin UDP port");
+    Udp.begin(udpPort);
+  }
 
   String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".255";
   broadCast = convertStringToIPAddress(strBroadCast);
@@ -185,7 +187,7 @@ void setup()
     blinkLed(3,500);
   }
   show("End Setup()");
-  delay(2000);
+  delay(1000);
 }
 
 WiFiClient client ;
@@ -215,7 +217,9 @@ void loop()
     ConnectWifi(timeStation);
     digitalWrite(LED,HIGH);
     delay(2000);
-    if (isConnectAP == false){
+    if (isConnectAP == true){
+      show("begin UDP port");
+      Udp.begin(udpPort);
       blinkLed(3,500);
       show("Connected To Other AP - " + staSSID);
     } else {
@@ -276,11 +280,11 @@ void loop()
     pushBufferRF(receivedUDP);
   }
 
-  if (resultRF.length() > 0) 
+  if (isConnectAP && resultRF.length() > 0) 
   {
     digitalWrite(LED,LOW);
     delay(50);
-    show(resultRF);
+    show(broadCast.toString() + "-" + resultRF);
     SendUdp(broadCast.toString(), udpPort, resultRF);
     digitalWrite(LED,HIGH);
   }
@@ -738,6 +742,7 @@ String ContentLogin(){
         <div class=\"left\">Password Port TCP</div>\
         <div class=\"right\">: <input class=\"input\" type=\"password\" placeholder=\"Mat khau\" name=\"txtPassPortTCP\" value=\"\" required></div>\
         <div class=\"listBtn\">\
+        <a href=\"/home\" target=\"_blank\">Visit Home Page!</a>\
       <button type=\"submit\">Login</button></div>\
       </form>\
     </div>\
@@ -792,6 +797,8 @@ String ContentConfig(){
           <button type=\"submit\"><a href=\"?txtRestart=true\">Restart</a></button>\
           <button type=\"submit\"><a href=\"?txtLogout=true\">Logout</a></button>\
         </div>\
+        <hr>\
+        <a href=\"/rfconfig\" target=\"_blank\">Visit RF Config Page!</a>\
       </form>\
     </div>\
   </body>\
@@ -844,7 +851,7 @@ String webView(){
       </table>\
       <br><hr>\
       <div class=\"listBtn\">\
-      <button type=\"submit\"><a href=\"/login\">Login</a></button>\
+      <button type=\"submit\"><a href=\"/\">Login</a></button>\
       </div>\
     </form>\
     <script type=\"text/javascript\">\
