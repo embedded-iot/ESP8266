@@ -20,7 +20,7 @@ ESP8266WebServer server(80);
 #define SERVER_PIN 5 
 
 #define DEBUGGING
-#define RFTEST false
+#define RFTEST true
 #define RFCHANNEL 15
 #define LENGTH_BUFFER_RF 10
 
@@ -79,7 +79,7 @@ WiFiUDP Udp;
 IPAddress broadCast;
 
 bool isServer =  false; 
-bool flagClear = true;
+bool flagClear = false;
 
 bool isLogin = false;
 bool isConnectAP = false;
@@ -201,7 +201,7 @@ int idChannel = -1;
 bool flagForward = false;
 
 long tStation = 0;
-long timeReconectToOtherAP = 10 * 60 * 1000; // 10 phut
+long timeReconectToOtherAP = 2 * 60 * 1000; // 10 phut
 
 void loop()
 {
@@ -212,19 +212,24 @@ void loop()
   }
 
   if (WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
-    show("Reconnect To Other AP - " + staSSID);
-    digitalWrite(LED,LOW);
-    ConnectWifi(timeStation);
-    digitalWrite(LED,HIGH);
-    delay(2000);
-    if (isConnectAP == true){
-      show("begin UDP port");
-      Udp.begin(udpPort);
-      blinkLed(3,500);
-      show("Connected To Other AP - " + staSSID);
-    } else {
-      show("Not connected To Other AP - " + staSSID);
-    }
+    show("Restart Device, Reconnect AP");
+    tcpServer.close();
+    // show("Reconnect To Other AP - " + staSSID);
+    // digitalWrite(LED,LOW);
+    // ConnectWifi(timeStation);
+    // digitalWrite(LED,HIGH);
+    // WiFiServer tcpServer(PORT_TCP_DEFAULT);
+    // tcpServer.begin(); // Start the TCP server port 333
+    // delay(1000);
+    // if (isConnectAP == true){
+    //   show("begin UDP port");
+    //   Udp.begin(udpPort);
+    //   blinkLed(3,500);
+    //   show("Connected To Other AP - " + staSSID);
+    // } else {
+    //   show("Not connected To Other AP - " + staSSID);
+    // }
+    setup();
     tStation = millis();
   }
 
@@ -294,6 +299,12 @@ void loop()
     pushBufferRF(resultRF);
   }
   
+  // if () {
+  //    if (!client.connected()) {
+  //      client.close();
+  //    }
+  // }
+
   //client = tcpServer.available();
   if (!client.connected()) {
         // try to connect to a new client
@@ -313,8 +324,11 @@ void loop()
       if (resultRF.length() > 0) {
         digitalWrite(LED,LOW);
         show(resultRF);
-        if (!client.println(resultRF.c_str()))
-          client.stop();
+        if (!client.println(resultRF.c_str())) {
+          // client.stop();
+          show("CLient timeout");
+          tcpServer.close();
+        }
         else show("SEND OK");
         delay(50);
         digitalWrite(LED,HIGH);
@@ -997,7 +1011,8 @@ void GiaTriThamSo()
             apSSID =  Value ;
             show("Set apSSID : " + apSSID);
             show("Auto gen IP:");
-            apIP = apGateway = "192.168." + keyEnd + ".1";
+            apIP = "192.168." + keyEnd + ".1";
+            apGateway = apIP;
             show(apIP);
           } else {
             show("apSSID is invalid.");
