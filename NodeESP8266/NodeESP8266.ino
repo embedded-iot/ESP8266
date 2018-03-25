@@ -20,7 +20,7 @@ ESP8266WebServer server(80);
 #define SERVER_PIN 5 
 
 #define DEBUGGING
-#define RFTEST true
+#define RFTEST false
 #define RFCHANNEL 15
 #define LENGTH_BUFFER_RF 10
 
