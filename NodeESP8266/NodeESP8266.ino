@@ -127,9 +127,10 @@ void setup()
 {
   delay(500);
   Serial.begin(115200);
+  Serial.println();
   idWebSite = 0;
   isLogin = false;
-  WiFi.disconnect();
+  //WiFi.disconnect();
   EEPROM.begin(512);
   GPIO();
   if (digitalRead(SERVER_PIN) == LOW) {
@@ -143,7 +144,7 @@ void setup()
     WriteConfig();
   }
   ReadConfig();
-  delay(1000);
+  //delay(1000);
 
   WiFi.mode(WIFI_AP_STA);
   delay(1000);
@@ -152,11 +153,11 @@ void setup()
   //ConnectWifi(4000);
   //isConnectAP
   //AccessPoint();
-  delay(1000);
+  //delay(1000);
   ConnectWifi(timeStation); 
   Serial.println("Begin TCP Server");
   tcpServer.begin(); // Start the TCP server port 333
-  delay(1000);
+  //delay(1000);
   if (isConnectAP == false)
   {
     //WiFi.disconnect();
@@ -204,9 +205,9 @@ int idChannel = -1;
 bool flagForward = false;
 
 long tStation = 0;
-long timeReconectToOtherAP = 5 * 60 * 1000; // 10 phut
+long timeReconectToOtherAP = 3 * 60 * 1000; // 10 phut
 long tNotice = 0;
-long timeoutNoticeNotConnect = 2 * 60 * 1000;
+long timeoutNoticeNotConnect = 1 * 60 * 1000;
 void loop()
 {
   server.handleClient();
@@ -217,12 +218,14 @@ void loop()
 
   if (!isConnectAP && millis() - tNotice > timeoutNoticeNotConnect) {
     blinkLed(2, 500);
+    show("Device not connect Access Point. Check connect again!");
     tNotice = millis();
   }
 
   if (WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
     show("Restart Device, Reconnect AP");
-    tcpServer.close();
+    //tcpServer.close();
+    
     // show("Reconnect To Other AP - " + staSSID);
     // digitalWrite(LED,LOW);
     // ConnectWifi(timeStation);
@@ -297,7 +300,7 @@ void loop()
   if (isConnectAP && resultRF.length() > 0) 
   {
     digitalWrite(LED,LOW);
-    delay(50);
+    delay(200);
     show(broadCast.toString() + "-" + resultRF);
     SendUdp(broadCast.toString(), udpPort, resultRF);
     digitalWrite(LED,HIGH);
@@ -312,9 +315,9 @@ void loop()
      if (!client.connected()) {
        client.flush();
        client.stop();
-       tcpServer.close();
+       //tcpServer.close();
        show("Client not response");
-       return;
+       //return;
      }
      else {
        show("CLient is connected");
@@ -344,7 +347,7 @@ void loop()
           // client.stop();
           show("CLient timeout");
           client.stop();
-          tcpServer.close();
+          //tcpServer.close();
         }
         else show("SEND OK");
         delay(50);
@@ -488,6 +491,7 @@ int ListenIdRF()
   if (analogRead(VT) > 500)
   {
     int timeOut = millis();
+    delay(50);
     show("VT HIGH");
     while (analogRead(VT) > 500 && millis() - timeOut < 2000){
        Di = -1;
