@@ -186,6 +186,9 @@ void setup()
   if (isConnectAP == false){
     blinkLed(3,500);
   }
+  if (isConnectAP) {
+    SendUdp(broadCast.toString(), udpPort,"#S#" + apSSID + "##START#E#");
+  }
   show("End Setup()");
   delay(1000);
 }
@@ -201,14 +204,20 @@ int idChannel = -1;
 bool flagForward = false;
 
 long tStation = 0;
-long timeReconectToOtherAP = 2 * 60 * 1000; // 10 phut
-
+long timeReconectToOtherAP = 5 * 60 * 1000; // 10 phut
+long tNotice = 0;
+long timeoutNoticeNotConnect = 2 * 60 * 1000;
 void loop()
 {
   server.handleClient();
   if (millis() - t > timeLogout) {
     isLogin = false;
     t = millis();
+  }
+
+  if (!isConnectAP && millis() - tNotice > timeoutNoticeNotConnect) {
+    blinkLed(2, 500);
+    tNotice = millis();
   }
 
   if (WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
@@ -299,11 +308,18 @@ void loop()
     pushBufferRF(resultRF);
   }
   
-  // if () {
-  //    if (!client.connected()) {
-  //      client.close();
-  //    }
-  // }
+  if (resultRF.length() > 0) {
+     if (!client.connected()) {
+       client.flush();
+       client.stop();
+       tcpServer.close();
+       show("Client not response");
+       return;
+     }
+     else {
+       show("CLient is connected");
+     }
+  }
 
   //client = tcpServer.available();
   if (!client.connected()) {
@@ -327,6 +343,7 @@ void loop()
         if (!client.println(resultRF.c_str())) {
           // client.stop();
           show("CLient timeout");
+          client.stop();
           tcpServer.close();
         }
         else show("SEND OK");
@@ -631,14 +648,14 @@ void ConnectWifi(long timeOut)
 {
   show("Connect to other Access Point");
   delay(1000);
-  int count = timeOut / 200;
+  int count = timeOut / 500;
   show("Connecting");
   show(staSSID);
   show(staPASS);
   WiFi.begin(staSSID.c_str(),staPASS.c_str());
   
   while (WiFi.status() != WL_CONNECTED && --count > 0) {
-    delay(200);
+    delay(500);
     Serial.print(".");
   }
   if (count > 0){
