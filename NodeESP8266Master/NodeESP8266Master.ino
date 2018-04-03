@@ -1,3 +1,4 @@
+#include "font.c"
 // #define STCP  14 //D5
 // #define SHTP  12 //D6
 // #define DTD   13 //D7
@@ -6,11 +7,10 @@
 // #define LSA  16 //D0
 // #define LSB  5  //D1
 // #define LSC  2  //D3
-
 #define STCP  PA3 //D5
 #define SHTP  PA4 //D6
 #define DTD   PA5 //D7
-#define DTX   Pa6 //D8
+#define DTX   PA6 //D8
 
 #define LSA  PA0 //D0
 #define LSB  PA1  //D1
@@ -84,15 +84,25 @@ void Show() {
   digitalWrite(STCP,HIGH);
  // delay(1);
 }
-void Quet() {
+int GetBit(int ValueChar, int hang, int cot) {
+  byte maByte = MaFont[ValueChar - 32][cot];
+  int maBit = maByte & ( 1 << hang);
+  return maBit;
+}
+
+void Quet(char* str) {
 
   int h, c;
-  for (h = 0; h < 2; h++) {
+  for (h = 0; h < 8; h++) {
     digitalWrite(STCP,LOW);
-    
+    int hang, cot, block;
     for (c = 0; c < 32; c++) {
-      //PushBit(0);
-      if (h == 1) {
+      hang = h;
+      block = c / 8;
+      cot = (block + 1 ) * 8 - c % 8 - 1;
+
+      int index = cot / 6;
+      if ( GetBit(str[index], hang, cot % 6) == 0) {
         PushBit(0);
       } else {
         PushBit(1);
@@ -101,7 +111,33 @@ void Quet() {
     }
     Show();
     //delay(1);
-    HangSang(h);
+    HangSang(7- hang);
+    delay(2);
+  }
+}
+int cr = 0;
+void QuetChay(char* str, long timeScroll) {
+
+  int h, c;
+  for (h = 0; h < 8; h++) {
+    digitalWrite(STCP,LOW);
+    int hang, cot, block;
+    for (c = 0; c < 32; c++) {
+      hang = h;
+      block = c / 8;
+      cot = (block + 1 ) * 8 - c % 8 - 1;
+
+      int index = cot / 6;
+      if ( GetBit(str[index], hang, cot % 6) == 0) {
+        PushBit(0);
+      } else {
+        PushBit(1);
+      }
+      //PushBit(0);
+    }
+    Show();
+    //delay(1);
+    HangSang(7- hang);
     delay(2);
   }
 }
@@ -179,7 +215,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  Quet();
+  Quet("123456");
   // PushTest();
   // HangSang(0);
   // delay(1000);
