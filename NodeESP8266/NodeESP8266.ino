@@ -21,7 +21,7 @@ ESP8266WebServer server(80);
 
 #define DEBUGGING
 #define RFTEST true
-#define RFCHANNEL 15
+#define RFCHANNEL 16
 #define LENGTH_BUFFER_RF 10
 
 
@@ -279,7 +279,7 @@ void loop()
     else resultRF = "";
   #endif
 
-  if (idChannel != -1) {
+  if (idChannel != 0) {
     String data = getStringByIdChannelRF(idChannel);
     String packet = EncodePacket(apSSID, data);
     resultRF = packet;
@@ -486,20 +486,24 @@ int ScanRF()
 int RFPIN[4] = {D0, D1, D2, D3};
 int ListenIdRF()
 {
-  int Di = -1;
+  int Di = 0;
  
   if (analogRead(VT) > 500)
   {
-    int timeOut = millis();
+    long timeOut = millis();
     delay(50);
     show("VT HIGH");
-    while (analogRead(VT) > 500 && millis() - timeOut < 2000){
-       Di = -1;
-       for (int i = 0;i<4; i++){
+//    while (analogRead(VT) > 500 && millis() - timeOut < 2000){
+    while (analogRead(VT) > 500){
+       Di = 0;
+       for (int i = 0; i < 4; i++){
          if (digitalRead(RFPIN[i]) == HIGH) {
           Di += pow(2, i);
          }
        }
+       while (analogRead(VT) > 500) {
+          delay(10);
+        }
     }
     show(String(Di));
   }
