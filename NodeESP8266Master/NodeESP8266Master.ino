@@ -1,4 +1,7 @@
 #include "font.c"
+#include <Ticker.h>  //Ticker Library
+ 
+Ticker ticker;
 
 #define DEBUGGING
 #define ESP8266
@@ -97,7 +100,7 @@ void Quet(char* str) {
     Show();
     //delay(1);
     HangSang(7- hang);
-    delay(2);
+    delay(1);
   }
 }
 int cr = 0;
@@ -148,6 +151,9 @@ void HangSang(int h)
     } 
 }
 
+void functionTicker() {
+  Quet("123456");
+}
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -160,11 +166,13 @@ void setup() {
   delay(1000);
   //Test();
   log("End setup ");
+   //Initialize Ticker every 0.5s
+  ticker.attach_ms(2, functionTicker); //Use <strong>attach</strong> if you need time in s
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  Quet("123456");
+  // Quet("123456");
   // PushTest();
   // HangSang(0);
   // delay(1000);
