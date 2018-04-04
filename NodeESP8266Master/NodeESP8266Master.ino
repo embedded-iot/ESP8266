@@ -1,20 +1,31 @@
 #include "font.c"
-// #define STCP  14 //D5
-// #define SHTP  12 //D6
-// #define DTD   13 //D7
-// #define DTX   15 //D8
 
-// #define LSA  16 //D0
-// #define LSB  5  //D1
-// #define LSC  2  //D3
-#define STCP  PA3 //D5
-#define SHTP  PA4 //D6
-#define DTD   PA5 //D7
-#define DTX   PA6 //D8
+#define DEBUGGING
+#define ESP8266
+#ifdef ESP8266 
+  #define STCP  14 //D5
+  #define SHTP  12 //D6
+  #define DTD   13 //D7
+  #define DTX   15 //D8
 
-#define LSA  PA0 //D0
-#define LSB  PA1  //D1
-#define LSC  PA2  //D3
+  #define LSA  16 //D0
+  #define LSB  5  //D1
+  #define LSC  2  //D3
+#else 
+  #define STCP  PA3 //D5
+  #define SHTP  PA4 //D6
+  #define DTD   PA5 //D7
+  #define DTX   PA6 //D8
+
+  #define LSA  PA0 //D0
+  #define LSB  PA1  //D1
+  #define LSC  PA2  //D3
+#endif
+
+void log(String s) {
+  #define DEBUGGING
+    Serial.println(s);
+}
 
 void GPIO() {
   pinMode(STCP, OUTPUT);
@@ -51,32 +62,6 @@ void PushBit(int s)
   // //delayMicroseconds(50);
   // digitalWrite(SHTP,LOW); 
 
-}
-void PushBitDo(int s)
-{
-  digitalWrite(SHTP,LOW);
-  delay(2);
-  if (s==1) {
-    digitalWrite(DTX,HIGH);
-  }
-  else {
-    digitalWrite(DTX,LOW);
-  }
-  delay(2);
-  digitalWrite(SHTP,HIGH); 
-}
-void PushBitXanh(int s)
-{
-  digitalWrite(SHTP,LOW);
-  delay(1);
-  if (s==1) {
-    digitalWrite(DTX,HIGH);
-  }
-  else {
-    digitalWrite(DTX,LOW);
-  }
-  delay(1);
-  digitalWrite(SHTP,HIGH); 
 }
 void Show() {
   digitalWrite(STCP,LOW);
@@ -141,34 +126,6 @@ void QuetChay(char* str, long timeScroll) {
     delay(2);
   }
 }
-void PushTest() {
-  digitalWrite(STCP,LOW);
-  for (int i = 0; i < 32; i++){
-    if (i == 8)
-      PushBit(1);
-    else 
-      PushBit(0);
-  }
-  Show();
-}
-void PushTest1() {
-
-  for (int i = 0; i < 32; i++){
-    digitalWrite(STCP,LOW);
-    PushBit(0);
-    Show();
-    delay(1000);
-  }
-}
-void Test() {
-  digitalWrite(STCP,LOW);
-  for (int i = 0 ;i < 32; i++) {
-    if (i %2 == 1)
-      PushBit(0);
-    else PushBit(1);
-  }
-  Show();
-}
 void ClearScreen(int bit) {
   digitalWrite(STCP,LOW);
   for (int i = 0 ;i < 32; i++) {
@@ -190,15 +147,7 @@ void HangSang(int h)
       case 7:  digitalWrite(LSA,HIGH);digitalWrite(LSB,HIGH);digitalWrite(LSC,HIGH); break;
     } 
 }
-void TestHang() {
-  for (int i = 0; i< 8; i++){
-    HangSang(i);
-    delay(500);
-  }
-}
-void log(String s) {
-  Serial.println(s);
-}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
