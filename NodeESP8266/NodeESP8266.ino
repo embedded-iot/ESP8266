@@ -188,6 +188,8 @@ void setup()
     blinkLed(3,500);
   }
   if (isConnectAP) {
+    SendUdp(broadCast.toString(), udpPort,"#S#" + apSSID + "##" + apSSID + "#E#");
+    delay(1000);
     SendUdp(broadCast.toString(), udpPort,"#S#" + apSSID + "##START#E#");
   }
   show("End Setup()");
