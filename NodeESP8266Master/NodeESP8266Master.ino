@@ -1,6 +1,18 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <WiFiServer.h>
+#include <EEPROM.h>
+#include <WiFiUdp.h>
+
 #include "font.c"
 #include <Ticker.h>  //Ticker Library
- 
+
+
+long udpPort = 4210;
+WiFiUDP Udp;
+String receivedUDP;
+char incomingPacket[255];
 Ticker ticker;
 
 #define DEBUGGING
@@ -26,8 +38,9 @@ Ticker ticker;
 #endif
 
 void log(String s) {
-  #define DEBUGGING
+  #ifdef DEBUGGING
     Serial.println(s);
+  #endif
 }
 
 void GPIO() {
@@ -78,7 +91,7 @@ int GetBit(int ValueChar, int hang, int cot) {
   return maBit;
 }
 
-void Quet(char* str) {
+void Quet(const char* str) {
 
   int h, c;
   for (h = 0; h < 8; h++) {
@@ -88,7 +101,7 @@ void Quet(char* str) {
       hang = h;
       block = c / 8;
       cot = (block + 1 ) * 8 - c % 8 - 1;
-
+      cot--; // show Column 1
       int index = cot / 6;
       if ( GetBit(str[index], hang, cot % 6) == 0) {
         PushBit(0);
@@ -129,10 +142,23 @@ void QuetChay(char* str, long timeScroll) {
     delay(2);
   }
 }
-void ClearScreen(int bit) {
+void TurnOffScreen() {
+  int h, c;
+  for (h = 0; h < 8; h++) {
+    digitalWrite(STCP,LOW);
+    for (c = 0; c < 32; c++) { 
+      PushBit(1);
+    }
+    Show();
+    //delay(1);
+    HangSang(7- h);
+    delay(1);
+  }
+}
+void ClearScreen() {
   digitalWrite(STCP,LOW);
   for (int i = 0 ;i < 32; i++) {
-    PushBit(bit);
+    PushBit(1);
   }
   Show();
 }
@@ -150,33 +176,106 @@ void HangSang(int h)
       case 7:  digitalWrite(LSA,HIGH);digitalWrite(LSB,HIGH);digitalWrite(LSC,HIGH); break;
     } 
 }
-
-void functionTicker() {
+//bool onScreen = true;
+void timer0_ISR (void) {
+  //if (onScreen)
+  //noInterrupts();
   Quet("123456");
+  // else 
+  //   TurnOffScreen();
+  timer0_write(ESP.getCycleCount() + 1600000L); // 80MHz == 1sec 80000000L); // 80MHz == 1sec
+  //interrupts();
 }
+String listenUDP(){
+ int packetSize = Udp.parsePacket();
+ if (packetSize)
+ {
+  log("Received UDP packet");
+  log("Received" + String(packetSize) + "bytes form "+ Udp.remoteIP().toString() + " ,port " + Udp.remotePort());
+  int len = Udp.read(incomingPacket, 255);
+  if (len > 0){
+   incomingPacket[len] = 0;
+  }
+  Serial.printf("UDP packet contents: %s\n", incomingPacket);
+  log("UDP packet:"+ String(incomingPacket));
+  return String(incomingPacket);
+ }
+ return "";
+}
+//getAddress("#S#apSSID##VIP 01#E#");
+//packet = "#S#apSSID#VIP 01#E#";
+// return VIP 01;
+String getData(String packet){
+  String s1 = "";
+  int i1 = packet.indexOf("##");
+  int i2 = packet.indexOf("#E#");
+  if (i2 > i1)
+    s1 = packet.substring(i1+2,i2);
+  return s1;
+}
+
+char* string2char(String command){
+  char *szBuffer = new char[command.length()+1];
+     strcpy(szBuffer,command.c_str( ));
+  return szBuffer; 
+}
+const char* str1;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   GPIO();
-  
-  HangSang(0);
   delay(1000);
   log("Start");
-  ClearScreen(1);
+  ClearScreen();
   delay(1000);
   //Test();
   log("End setup ");
-   //Initialize Ticker every 0.5s
-  ticker.attach_ms(2, functionTicker); //Use <strong>attach</strong> if you need time in s
+  //onScreen = true;
+  //  noInterrupts();
+  // timer0_isr_init();
+  // timer0_attachInterrupt(timer0_ISR);
+  // timer0_write(ESP.getCycleCount() + 1600000L); // 80MHz == 1sec
+  // interrupts();
+
+  log("begin UDP port");
+  Udp.begin(udpPort);
+  str1 = "MBELL  ";
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  // Quet("123456");
+  //Quet("123456");
   // PushTest();
   // HangSang(0);
   // delay(1000);
   // ClearScreen(1);
   // Test();
   // delay(1000);
+  
+  //delay(5000);
+  //onScreen = !onScreen;
+  // if (onScreen == true) {
+  //   onScreen = false;
+  //   log("false");
+  // }
+  // else {
+  //   onScreen = true;
+  //   log("true");
+  // }
+  receivedUDP = listenUDP();
+  if (receivedUDP.length() > 0)
+  {
+    log(receivedUDP);
+    //pushBufferRF(receivedUDP);
+    String data = getData(receivedUDP);
+    if (data.length() > 0 ) {
+      //log(data);
+      data.replace(" ","");
+      str1 = string2char(data + "   ");
+      Serial.println(str1);
+    }
+    //str = c_str();
+  }
+  Quet(str1);
+  //delay(1);
 }
