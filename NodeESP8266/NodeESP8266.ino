@@ -165,6 +165,7 @@ void setup()
     show("Set WIFI_AP");
     //ConfigNetwork();
   }
+  delay(1000);
   AccessPoint();
 
   delay(1000);
