@@ -16,29 +16,37 @@ char incomingPacket[255];
 Ticker ticker;
 
 // long timeTimer = 200000L; // 250us
-long timeTimer = 200000L; // 250us
-#define DEBUGGING
-#define ESP8266
-#ifdef ESP8266 
-  #define STCP  14 //D5
-  #define SHTP  12 //D6
-  #define DTD   13 //D7
-  #define DTX   15 //D8
+long timeTimer = 300000L; // 250us
+#define DEBUGGING1
+//#define ESP8266
+//#ifdef ESP8266 
+//  #define STCP  14 //D5
+//  #define SHTP  12 //D6
+//  #define DTD   13 //D7
+//  #define DTX   15 //D8
+//
+//  #define LSA  16 //D0
+//  #define LSB  5  //D1
+//  #define LSC  4  //D3
+//#else 
+//  #define STCP  PA3 //D5
+//  #define SHTP  PA4 //D6
+//  #define DTD   PA5 //D7
+//  #define DTX   PA6 //D8
+//
+//  #define LSA  PA0 //D0
+//  #define LSB  PA1  //D1
+//  #define LSC  PA2  //D3
+//#endif
 
-  #define LSA  16 //D0
-  #define LSB  5  //D1
-  #define LSC  4  //D3
-#else 
-  #define STCP  PA3 //D5
-  #define SHTP  PA4 //D6
-  #define DTD   PA5 //D7
-  #define DTX   PA6 //D8
+#define LSA  1 //D0
+#define LSB  3  //D1
+#define LSC  5  //D3
 
-  #define LSA  PA0 //D0
-  #define LSB  PA1  //D1
-  #define LSC  PA2  //D3
-#endif
-
+#define STCP  0 //D5
+#define SHTP  2 //D6
+#define DTD   15 //D7
+#define DTX   15 //D8
 
 char  buff[8][4];
 int hSang;
@@ -111,7 +119,7 @@ void PushBit(int s)
     //digitalWrite(DTD,HIGH);
     digitalWrite(DTX,LOW); 
   }
-  digitalWrite(SHTP,HIGH); 
+   (SHTP,HIGH); 
 }
 void PushByte(byte s) {
   for (int i = 0; i < 8; i++) {
@@ -129,7 +137,8 @@ void TestBuff() {
   for (int c = 0; c < 4; c++) {
     PushByte(buff[hSang][c]);
   }
-  Show();
+  digitalWrite(STCP,LOW);
+  digitalWrite(STCP,HIGH);
   HangSang(7- hSang);
 }
 void Show() {
@@ -247,7 +256,7 @@ void timer0_ISR (void) {
   }
   // Quet("1234567");
   // Quet1("123456");
-  //TestBuff();
+//  TestBuff();
   hSang++;
   timer0_write(ESP.getCycleCount() + timeTimer); // 80MHz == 1sec 80000000L); // 80MHz == 1sec
 }
@@ -297,15 +306,20 @@ void setup() {
   ClearScreen(1);
   ConvertStringToBuff(str1);
 
-  noInterrupts();
-  timer0_isr_init();
-  timer0_attachInterrupt(timer0_ISR);
-  timer0_write(ESP.getCycleCount() + timeTimer); // 80MHz == 1sec 800000L
-  interrupts();
+//  noInterrupts();
+//  timer0_isr_init();
+//  timer0_attachInterrupt(timer0_ISR);
+//  timer0_write(ESP.getCycleCount() + timeTimer); // 80MHz == 1sec 800000L
+//  interrupts();
+
+//  for (int i = 0; i < 8 ; i++) {
+//    HangSang(i);
+//    delay(1000);
+//  }
   log("End setup ");
 
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, HIGH);
+//  pinMode(LED, OUTPUT);
+//  digitalWrite(LED, HIGH);
 
 }
 
@@ -327,4 +341,11 @@ void loop() {
   // }
   // digitalWrite(LED, !digitalRead(LED));
   // delay(1000);
+  if (hSang >= 8) {
+    hSang = 0;
+  }
+  TestBuff();
+  hSang++;
+  delay(3);
+  
 }
