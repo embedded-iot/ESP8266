@@ -15,8 +15,8 @@ String receivedUDP;
 char incomingPacket[255];
 Ticker ticker;
 
+// long timeTimer = 200000L; // 250us
 long timeTimer = 200000L; // 250us
-
 #define DEBUGGING
 #define ESP8266
 #ifdef ESP8266 
@@ -27,7 +27,7 @@ long timeTimer = 200000L; // 250us
 
   #define LSA  16 //D0
   #define LSB  5  //D1
-  #define LSC  2  //D3
+  #define LSC  4  //D3
 #else 
   #define STCP  PA3 //D5
   #define SHTP  PA4 //D6
@@ -167,7 +167,7 @@ void Quet(const char* str) {
     //delay(1);
     HangSang(7- hang);
     // delay(1);
-    //delayMicroseconds(600);
+    delayMicroseconds(300);
   }
 }
 void Quet1(const char* str) {
@@ -245,8 +245,9 @@ void timer0_ISR (void) {
   if (hSang >= 8) {
     hSang = 0;
   }
+  // Quet("1234567");
   // Quet1("123456");
-  TestBuff();
+  //TestBuff();
   hSang++;
   timer0_write(ESP.getCycleCount() + timeTimer); // 80MHz == 1sec 80000000L); // 80MHz == 1sec
 }
@@ -284,6 +285,7 @@ char* string2char(String command){
   return szBuffer; 
 }
 const char* str1;
+#define LED 2
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -294,27 +296,35 @@ void setup() {
   digitalWrite(DTD,HIGH);
   ClearScreen(1);
   ConvertStringToBuff(str1);
+
   noInterrupts();
   timer0_isr_init();
   timer0_attachInterrupt(timer0_ISR);
   timer0_write(ESP.getCycleCount() + timeTimer); // 80MHz == 1sec 800000L
   interrupts();
   log("End setup ");
+
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, HIGH);
+
 }
 
 void loop() {
-  receivedUDP = listenUDP();
-  if (receivedUDP.length() > 0)
-  {
-    log(receivedUDP);
-    //pushBufferRF(receivedUDP);
-    String data = getData(receivedUDP);
-    if (data.length() > 0 ) {
-      //log(data);
-      data.replace(" ","");
-      str1 = string2char(data + "   ");
-      ConvertStringToBuff(str1);
-      Serial.println(str1);
-    }
-  }
+
+  // receivedUDP = listenUDP();
+  // if (receivedUDP.length() > 0)
+  // {
+  //   log(receivedUDP);
+  //   //pushBufferRF(receivedUDP);
+  //   String data = getData(receivedUDP);
+  //   if (data.length() > 0 ) {
+  //     //log(data);
+  //     data.replace(" ","");
+  //     str1 = string2char(data + "   ");
+  //     ConvertStringToBuff(str1);
+  //     Serial.println(str1);
+  //   }
+  // }
+  // digitalWrite(LED, !digitalRead(LED));
+  // delay(1000);
 }
