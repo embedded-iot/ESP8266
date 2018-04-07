@@ -91,7 +91,7 @@ String SoftIP, LocalIP;
 
 String MAC;
 long portTCP;
-long timeStation = 7000;
+long timeStation = 10000;
 
 String bufferRF[LENGTH_BUFFER_RF+1];
 int flagRF[LENGTH_BUFFER_RF+1];
@@ -154,7 +154,11 @@ void setup()
   //isConnectAP
   //AccessPoint();
   //delay(1000);
-  ConnectWifi(timeStation); 
+  if (WiFi.status() != WL_CONNECTED ) {
+    ConnectWifi(timeStation); 
+  } else {
+    isConnectAP = true;
+  }
   Serial.println("Begin TCP Server");
   tcpServer.begin(); // Start the TCP server port 333
   //delay(1000);
