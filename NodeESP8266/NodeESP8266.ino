@@ -1,3 +1,19 @@
+/***********************************************************************************
+ *
+ * GPIO PIN 
+ * RESET 4  GPIO4
+ * LED   2  GPIO3
+ * 
+ * RF PIN
+ * VT A0
+ * D0 16 GPIO16
+ * D1 15 GPIO15
+ * D2 12 GPIO12
+ * D3 5  GPIO5
+ * 
+ * 
+ **********************************************************************************/
+
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -12,9 +28,9 @@ ESP8266WebServer server(80);
 // #define RESET 4 
 // #define VT 5
 #define D0 16
-#define D1 14
+#define D1 15
 #define D2 12
-#define D3 13
+#define D3 5
 #define LED 2
 // #define SERVER_PIN A0 
 #define SERVER_PIN 5 
@@ -154,11 +170,8 @@ void setup()
   //isConnectAP
   //AccessPoint();
   //delay(1000);
-  if (WiFi.status() != WL_CONNECTED ) {
-    ConnectWifi(timeStation); 
-  } else {
-    isConnectAP = true;
-  }
+  ConnectWifi(timeStation); 
+  
   Serial.println("Begin TCP Server");
   tcpServer.begin(); // Start the TCP server port 333
   //delay(1000);
