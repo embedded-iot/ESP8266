@@ -89,6 +89,9 @@ ESP8266WebServer server(80);
 #define ADDR_PORTTCP (ADDR_APSUBNET+20)
 #define ADDR_RFCONFIG (ADDR_PORTTCP+20)
 
+#define ADDR_SERVER           400
+#define ADDR_RECONNECT_AP     402
+
 #define ID_DEFAULT 9
 #define NAME_DEFAULT "MBELL"
 
@@ -127,6 +130,7 @@ WiFiUDP Udp;
 IPAddress broadCast;
 
 bool isServer =  false; 
+bool isReconnectAP = false;
 bool flagClear = false;
 
 bool isLogin = false;
@@ -171,6 +175,11 @@ String SendTRViewHome();
 void GiaTriThamSo();
 
 
+long tStation = 0;
+long timeReconectToOtherAP = 2 * 60 * 1000; // 10 phut
+long tNotice = 0;
+long timeoutNoticeNotConnect = 10 * 1000;
+
 void setup()
 {
   delay(500);
@@ -188,12 +197,10 @@ void setup()
 
   scrollDelay = SCROLL_DELAY;
   // PrintMatrix("START!", 0);
-  printText(0, MAX_DEVICES-1, "START!");
+  printText(0, MAX_DEVICES-1, "START");
+  // TurnOnScroll();
+  // PrintMatrix("MBELL    ", 0);
   GPIO();
-  if (digitalRead(SERVER_PIN) == LOW) {
-    isServer = true;
-    show("I am server!");
-  }
     
   if (EEPROM.read(500) != 255 || flagClear){
     ClearEEPROM();
@@ -253,8 +260,12 @@ void setup()
   }
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
-  printText(0, MAX_DEVICES-1, "End!");
+  printText(0, MAX_DEVICES - 1, "End!");
+  // PrintMatrix("END     ", 0);
   delay(1000);
+  //TurnOnScroll();
+  tNotice = millis();
+  tStation = tNotice;
 }
 
 WiFiClient client ;
@@ -267,10 +278,6 @@ String resultRF = "";
 int idChannel = -1;
 bool flagForward = false;
 
-long tStation = 0;
-long timeReconectToOtherAP = 3 * 60 * 1000; // 10 phut
-long tNotice = 0;
-long timeoutNoticeNotConnect = 1 * 60 * 1000;
 void loop()
 {
   server.handleClient();
@@ -281,13 +288,13 @@ void loop()
     t = millis();
   }
 
-  if (!isConnectAP && millis() - tNotice > timeoutNoticeNotConnect) {
+  if (isReconnectAP && WiFi.status() != WL_CONNECTED  && millis() - tNotice > timeoutNoticeNotConnect) {
     blinkLed(2, 500);
     show("Device not connect Access Point. Check connect again!");
     tNotice = millis();
   }
 
-  if (WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
+  if (isReconnectAP && WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
     show("Restart Device, Reconnect AP");
     //tcpServer.close();
     
@@ -364,11 +371,8 @@ void loop()
 
   if (isConnectAP && resultRF.length() > 0) 
   {
-    digitalWrite(LED,LOW);
-    delay(200);
     show(broadCast.toString() + "-" + resultRF);
     SendUdp(broadCast.toString(), udpPort, resultRF);
-    digitalWrite(LED,HIGH);
   }
   // Nếu là server thì hiển thị dữ liệu của cả những nút con
   if (isServer && receivedUDP.length() > 0) {
@@ -378,8 +382,11 @@ void loop()
   
   if (resultRF.length() > 0) {
     // PrintMatrix(getData(resultRF), 0);
-    PrintMatrix("    ", 0);
+    // PrintMatrix("    ", 0);
+    digitalWrite(LED,LOW);
+    delay(400);
     printText(0, MAX_DEVICES-1, string2char(getData(resultRF)));
+    digitalWrite(LED,HIGH);
      if (!client.connected()) {
        client.flush();
        client.stop();
@@ -639,6 +646,27 @@ String ReadStringFromEEPROM(int address)
   return s;
 }
 
+
+/*
+ * Function Save Int To EEPROM
+ * Parameter : +data    : int Data
+ *             +address : address in EEPROM
+ * Return: None.
+ */
+void SaveIntToEEPROM(int data,int address) {
+  EEPROM.write(address,data); 
+  EEPROM.commit();
+}
+
+/*
+ * Function Read Int From EEPROM
+ * Parameter : +address : address in EEPROM
+ * Return: int.
+ */
+int ReadIntFromEEPROM(int address) {
+  return EEPROM.read(address);
+}
+
 void ConfigDefault()
 {
   isLogin = false;
@@ -676,6 +704,9 @@ void WriteConfig()
     SaveStringToEEPROM(channelRF[i], ADDR_RFCONFIG + i*10);
   }
   
+  SaveIntToEEPROM(isServer ? 1 : 0, ADDR_SERVER);
+  SaveIntToEEPROM(isReconnectAP ? 1 : 0, ADDR_RECONNECT_AP);
+
   show("Write Config");
 }
 void ReadConfig()
@@ -704,6 +735,15 @@ void ReadConfig()
     show(channelRF[i]);
   }
   
+  if (ReadIntFromEEPROM(ADDR_SERVER) != 0) {
+    isServer = true;
+    show("I am server!");
+  }
+
+  if (ReadIntFromEEPROM(ADDR_RECONNECT_AP) != 0) {
+    isReconnectAP = true;
+    show("Auto Reconnect AP!");
+  }
 }
 
 void AccessPoint()
@@ -886,6 +926,8 @@ String ContentConfig(){
         " + DisplayStationIP() + "\
         <div class=\"left\">Status</div>\
         <div class=\"right\">: "+(isConnectAP == true ? "Connected" : "Disconnect")+"</div>\
+        <div class=\"left\">Auto Reconnect AP</div>\
+        <div class=\"right\">: <input type=\"radio\" name=\"chboxReconnectAP\" value=\"true\" " + (isReconnectAP ? "checked" : "") + ">Auto<input type=\"radio\" name=\"chboxReconnectAP\" value=\"false\" " + (!isReconnectAP ? "checked" : "") + ">None</div>\
         <div class=\"subtitle\">Access Point mode (This is a Access Point)</div>\
         <div class=\"left\">Name</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"Tên wifi phát ra\" name=\"txtAPName\" value=\""+apSSID+"\" required></div>\
@@ -902,6 +944,8 @@ String ContentConfig(){
         <div class=\"right\">: <input min=\"0\" class=\"input\" disabled value=\""+ strBroadCast +"\" ></div>\
         <div class=\"left\">UPD PORT</div>\
         <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" disabled value=\""+String(PORT_UDP_DEFAULT)+"\" ></div>\
+        <div class=\"left\">Device Mode!</div>\
+        <div class=\"right\">: <input type=\"radio\" name=\"chboxServer\" value=\"true\" " + (isServer ? "checked" : "") + ">Server<input type=\"radio\" name=\"chboxServer\" value=\"false\" " + (!isServer ? "checked" : "") + ">Client</div>\
         <hr>\
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"?txtRefresh=true\">Refresh</a></button>\
@@ -1140,6 +1184,20 @@ void GiaTriThamSo()
           show("Set apGateway : " + apGateway);
          }
       }
+      else if (Name.indexOf("chboxReconnectAP") >= 0){
+        String strChboxReconnectAP = isReconnectAP ? "true" : "false";
+        if (Value != strChboxReconnectAP){
+          isReconnectAP = (Value == "true" ? true : false);
+          show("Set isReconnectAP : " + Value);
+        }
+      }
+      else if (Name.indexOf("chboxServer") >= 0){
+        String strChboxServer = isServer ? "true" : "false";
+        if (Value != strChboxServer){
+          isServer = (Value == "true" ? true : false);
+          show("Set isServer : " + Value);
+        }
+      }
       else if (Name.indexOf("APSubnet") >= 0){
         if (isValidStringIP(Value) && Value != apSubnet){
           apSubnet =  Value ;
@@ -1308,6 +1366,7 @@ void setColumn(int pos) {
 
 // Display String Matrix
 void PrintMatrix(String s, int pos) {
+  printText(0, MAX_DEVICES-1, "        ");
   strcpy(curMessage, s.c_str());
   newMessage[0] = '\0';
   setColumn(pos);
