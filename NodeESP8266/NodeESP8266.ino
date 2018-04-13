@@ -183,6 +183,7 @@ long timeoutNoticeNotConnect = 10 * 1000;
 void setup()
 {
   delay(500);
+  WiFi.disconnect();
   Serial.begin(115200);
   Serial.println();
   idWebSite = 0;
@@ -219,9 +220,6 @@ void setup()
   //AccessPoint();
   //delay(1000);
   ConnectWifi(timeStation); 
-
-  Serial.println("Begin TCP Server");
-  tcpServer.begin(); // Start the TCP server port 333
   //delay(1000);
   if (isConnectAP == false)
   {
@@ -236,7 +234,8 @@ void setup()
   delay(1000);
  
   StartServer();
-  
+  Serial.println("Begin TCP Server");
+  tcpServer.begin(); // Start the TCP server port 333
   // Setup the UDP port
   if (isConnectAP == true){
    
@@ -384,7 +383,9 @@ void loop()
     // PrintMatrix(getData(resultRF), 0);
     // PrintMatrix("    ", 0);
     digitalWrite(LED,LOW);
-    delay(400);
+    delay(200);
+    printText(0, MAX_DEVICES-1, "        ");
+    delay(50);
     printText(0, MAX_DEVICES-1, string2char(getData(resultRF)));
     digitalWrite(LED,HIGH);
      if (!client.connected()) {
@@ -430,7 +431,7 @@ void loop()
       }
   }
 
-  delay(50);
+  delay(2);
 }
 void show(String s)
 {
