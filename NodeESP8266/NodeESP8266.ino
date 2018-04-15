@@ -286,6 +286,13 @@ int countNoticeRing;
 long timeNoticeRing;
 bool NoticeRing;
 
+#define maxBuffNotice 10
+int lengthBuffNotice;
+String buffNotice[maxBuffNotice];
+
+#define  MIN_TIME_NOTICE 15000
+long timeShow;
+
 void loop()
 {
   server.handleClient();
@@ -391,10 +398,10 @@ void loop()
   if (resultRF.length() > 0) {
     // PrintMatrix(getData(resultRF), 0);
     // PrintMatrix("    ", 0);
-    NoticeMatrix = true;
+    // NoticeMatrix = true;
     NoticeRing = true;
     countNoticeRing = 0;
-    strNoticeMatrix = resultRF;
+    PushBuffNotice(getData(resultRF));
      if (!client.connected()) {
        client.flush();
        client.stop();
@@ -438,9 +445,23 @@ void loop()
       }
   }
 
+  if (millis() - timeShow > MIN_TIME_NOTICE) {
+    String tg = PopBuffNotice();
+    show("Pop: " + String(lengthBuffNotice));
+    if (tg != strNoticeMatrix) {
+      strNoticeMatrix = tg;
+      show(strNoticeMatrix);
+      NoticeRing = true;
+      NoticeMatrix = true;
+    }
+   
+    timeShow = millis();
+  }
+
   if (NoticeRing && millis() - timeNoticeRing > 1000) {
     if (countNoticeRing / 3 < 2 && countNoticeRing % 3 == 0) {
       digitalWrite(LED,LOW);
+      // show("Ring LED");
       delay(200);
     }
     if (countNoticeRing < 6) {
@@ -452,11 +473,12 @@ void loop()
     digitalWrite(LED,HIGH);
     timeNoticeRing = millis();
   }
-  if (NoticeMatrix && millis() - timeNoticeMatrix > 1000 ) {
-    if (countNoticeMatrix < 10) {
+  if (NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
+    if (countNoticeMatrix < 6) {
       printText(0, MAX_DEVICES-1, "        ");
       delay(50);
-      printText(0, MAX_DEVICES-1, string2char(getData(strNoticeMatrix)));
+      printText(0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+      // show("Ring MATRIX");
       countNoticeMatrix++;
     } else {
       countNoticeMatrix = 0;
@@ -468,6 +490,44 @@ void loop()
   delay(10);
 }
 
+void PushBuffNotice(String s) {
+  if (lengthBuffNotice == 0) {
+    buffNotice[lengthBuffNotice] = s;
+    lengthBuffNotice++;
+  }
+  else {
+    for (int j = 0; j < lengthBuffNotice; j++) {
+      if (s == buffNotice[j]) {
+        show("Duplicate " + s);
+        return ;
+      }
+    }
+    if (lengthBuffNotice + 1 <= maxBuffNotice) {
+      buffNotice[lengthBuffNotice++] = s;
+    } else {
+      for (int i = 0; i < lengthBuffNotice - 1; i++) {
+        buffNotice[i] = buffNotice[i+1];
+      }
+      buffNotice[lengthBuffNotice - 1] = s;
+    }
+  }
+  show("Push :" + s);
+  show("Length:" + String(lengthBuffNotice));
+}
+String PopBuffNotice() {
+  if (lengthBuffNotice <= 0) {
+    return "------";
+  // } else if (lengthBuffNotice == 1) {
+  //   return buffNotice[0];
+  } else {
+    String fontBuff = buffNotice[0];
+    lengthBuffNotice--; 
+    for (int i = 0; i < lengthBuffNotice; i++) {
+      buffNotice[i] = buffNotice[i+1];
+    }
+    return fontBuff;
+  }
+}
 void show(String s)
 {
   #ifdef DEBUGGING 
