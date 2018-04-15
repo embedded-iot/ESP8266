@@ -277,6 +277,15 @@ String resultRF = "";
 int idChannel = -1;
 bool flagForward = false;
 
+int countNoticeMatrix;
+long timeNoticeMatrix;
+bool NoticeMatrix;
+String strNoticeMatrix;
+
+int countNoticeRing;
+long timeNoticeRing;
+bool NoticeRing;
+
 void loop()
 {
   server.handleClient();
@@ -378,16 +387,14 @@ void loop()
     resultRF = receivedUDP;
     pushBufferRF(resultRF);
   }
-  
+
   if (resultRF.length() > 0) {
     // PrintMatrix(getData(resultRF), 0);
     // PrintMatrix("    ", 0);
-    digitalWrite(LED,LOW);
-    delay(200);
-    printText(0, MAX_DEVICES-1, "        ");
-    delay(50);
-    printText(0, MAX_DEVICES-1, string2char(getData(resultRF)));
-    digitalWrite(LED,HIGH);
+    NoticeMatrix = true;
+    NoticeRing = true;
+    countNoticeRing = 0;
+    strNoticeMatrix = resultRF;
      if (!client.connected()) {
        client.flush();
        client.stop();
@@ -417,7 +424,7 @@ void loop()
         else show("+IPD:" + stringClient);  
       }
       if (resultRF.length() > 0) {
-        digitalWrite(LED,LOW);
+        // digitalWrite(LED,LOW);
         show(resultRF);
         if (!client.println(resultRF.c_str())) {
           // client.stop();
@@ -426,13 +433,41 @@ void loop()
           //tcpServer.close();
         }
         else show("SEND OK");
-        delay(50);
-        digitalWrite(LED,HIGH);
+        // delay(50);
+        // digitalWrite(LED,HIGH);
       }
   }
 
-  delay(2);
+  if (NoticeRing && millis() - timeNoticeRing > 1000) {
+    if (countNoticeRing / 3 < 2 && countNoticeRing % 3 == 0) {
+      digitalWrite(LED,LOW);
+      delay(200);
+    }
+    if (countNoticeRing < 6) {
+      countNoticeRing++;
+    } else {
+      countNoticeRing = 0;
+      NoticeRing = false;
+    }
+    digitalWrite(LED,HIGH);
+    timeNoticeRing = millis();
+  }
+  if (NoticeMatrix && millis() - timeNoticeMatrix > 1000 ) {
+    if (countNoticeMatrix < 10) {
+      printText(0, MAX_DEVICES-1, "        ");
+      delay(50);
+      printText(0, MAX_DEVICES-1, string2char(getData(strNoticeMatrix)));
+      countNoticeMatrix++;
+    } else {
+      countNoticeMatrix = 0;
+      NoticeMatrix = false;
+    }
+    timeNoticeMatrix = millis();
+  }
+
+  delay(10);
 }
+
 void show(String s)
 {
   #ifdef DEBUGGING 
