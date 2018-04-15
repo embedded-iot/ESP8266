@@ -180,6 +180,22 @@ long timeReconectToOtherAP = 2 * 60 * 1000; // 10 phut
 long tNotice = 0;
 long timeoutNoticeNotConnect = 10 * 1000;
 
+int countNoticeMatrix;
+long timeNoticeMatrix;
+bool NoticeMatrix;
+String strNoticeMatrix;
+
+int countNoticeRing;
+long timeNoticeRing;
+bool NoticeRing;
+
+bool FlagNotice;
+#define maxBuffNotice 10
+int lengthBuffNotice;
+String buffNotice[maxBuffNotice];
+
+#define  MIN_TIME_NOTICE 15000
+
 void setup()
 {
   delay(500);
@@ -265,6 +281,7 @@ void setup()
   //TurnOnScroll();
   tNotice = millis();
   tStation = tNotice;
+  FlagNotice = true;
 }
 
 WiFiClient client ;
@@ -277,22 +294,9 @@ String resultRF = "";
 int idChannel = -1;
 bool flagForward = false;
 
-int countNoticeMatrix;
-long timeNoticeMatrix;
-bool NoticeMatrix;
-String strNoticeMatrix;
 
-int countNoticeRing;
-long timeNoticeRing;
-bool NoticeRing;
-
-#define maxBuffNotice 10
-int lengthBuffNotice;
-String buffNotice[maxBuffNotice];
-
-#define  MIN_TIME_NOTICE 15000
 long timeShow;
-
+long DelayShow  = 1000;
 void loop()
 {
   server.handleClient();
@@ -399,8 +403,13 @@ void loop()
     // PrintMatrix(getData(resultRF), 0);
     // PrintMatrix("    ", 0);
     // NoticeMatrix = true;
-    NoticeRing = true;
-    countNoticeRing = 0;
+    // NoticeRing = true;
+    // countNoticeRing = 0;
+
+    // if (strNoticeMatrix == "------") {
+    //   FlagNotice = true;
+    // }
+    // FlagNotice = true;
     PushBuffNotice(getData(resultRF));
      if (!client.connected()) {
        client.flush();
@@ -424,6 +433,12 @@ void loop()
         String stringClient = client.readString();
         stringClient += "OK";
         if (stringClient.indexOf("#S#") >= 0) {
+          String stg = getData(stringClient);
+          if (stg == strNoticeMatrix) {
+            show("OK! Clear Screen");
+            strNoticeMatrix = "------";
+            printText(0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+          }
           pushBufferRF(stringClient);
           SendUdp(broadCast.toString(), udpPort, stringClient);
           show("+IPD:" + stringClient);  
@@ -445,16 +460,22 @@ void loop()
       }
   }
 
-  if (millis() - timeShow > MIN_TIME_NOTICE) {
+  if (millis() - timeShow > DelayShow) {
+    if (lengthBuffNotice >= 1) {
+      DelayShow = 15000;
+    } else {
+      DelayShow = 1000;
+    }
     String tg = PopBuffNotice();
-    show("Pop: " + String(lengthBuffNotice));
-    if (tg != strNoticeMatrix) {
+    show("Pop: " + tg + " Length:" + String(lengthBuffNotice));
+    if (tg != "------") {
       strNoticeMatrix = tg;
-      show(strNoticeMatrix);
+      show("Change Notice!");
+
       NoticeRing = true;
       NoticeMatrix = true;
     }
-   
+    FlagNotice = false;
     timeShow = millis();
   }
 
