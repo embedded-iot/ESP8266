@@ -56,14 +56,15 @@ bool flagScroll = false;
 ESP8266WebServer server(80);
 
 #define RESET 4 
-#define VT A0
+#define VT 16
 // #define RESET 4 
 // #define VT 5
-#define D0 16
+#define D0 2
 #define D1 15
 #define D2 12
 #define D3 5
-#define LED 2
+#define LED 3
+
 // #define SERVER_PIN A0 
 #define SERVER_PIN 5 
 
@@ -262,7 +263,7 @@ void setup()
   broadCast = convertStringToIPAddress(strBroadCast);
   show("IP broadCast");
   show(broadCast.toString());
-  digitalWrite(LED,HIGH);
+  // digitalWrite(LED,HIGH);
   delay(1000);
   // Notify: Connect AP success. 
   if (isConnectAP == false){
@@ -483,7 +484,7 @@ void loop()
 
   if (NoticeRing && millis() - timeNoticeRing > 1000) {
     if (countNoticeRing / 3 < 2 && countNoticeRing % 3 == 0) {
-      digitalWrite(LED,LOW);
+      digitalWrite(LED,HIGH);
       // show("Ring LED");
       delay(200);
     }
@@ -493,7 +494,7 @@ void loop()
       countNoticeRing = 0;
       NoticeRing = false;
     }
-    digitalWrite(LED,HIGH);
+    digitalWrite(LED,LOW);
     timeNoticeRing = millis();
   }
   if (NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
@@ -567,8 +568,8 @@ char* string2char(String command){
 void blinkLed(int numberRepeat, long tdelay) {
   int i=0;
   while (i++ < numberRepeat) {
-    digitalWrite(LED,LOW);delay(tdelay);
     digitalWrite(LED,HIGH);delay(tdelay);
+    digitalWrite(LED,LOW);delay(tdelay);
   }
 }
 String EncodePacket(String address, String data){
@@ -577,8 +578,6 @@ String EncodePacket(String address, String data){
 void GPIO()
 {
   show("GPIO");
-// pinMode(PINCHUONG,OUTPUT);
-// digitalWrite(PINCHUONG,HIGH);
   pinMode(LED,OUTPUT);
   digitalWrite(LED,LOW);
   pinMode(RESET,INPUT_PULLUP);
@@ -687,20 +686,20 @@ int ListenIdRF()
 {
   int Di = 0;
  
-  if (analogRead(VT) > 500)
+  if (digitalRead(VT) == HIGH)
   {
     long timeOut = millis();
     delay(50);
     show("VT HIGH");
 //    while (analogRead(VT) > 500 && millis() - timeOut < 2000){
-    while (analogRead(VT) > 500){
+    if (digitalRead(VT) == HIGH){
        Di = 0;
        for (int i = 0; i < 4; i++){
          if (digitalRead(RFPIN[i]) == HIGH) {
           Di += pow(2, i);
          }
        }
-       while (analogRead(VT) > 500) {
+       while (digitalRead(VT) == HIGH) {
           delay(10);
         }
     }
