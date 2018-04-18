@@ -297,6 +297,8 @@ bool flagForward = false;
 
 long timeShow;
 long DelayShow  = 1000;
+
+int countBlink = 20;
 void loop()
 {
   server.handleClient();
@@ -462,7 +464,7 @@ void loop()
 
   if (millis() - timeShow > DelayShow) {
     if (lengthBuffNotice >= 1) {
-      DelayShow = 15000;
+      DelayShow = countBlink * 500;
     } else {
       DelayShow = 1000;
     }
@@ -495,7 +497,7 @@ void loop()
     timeNoticeRing = millis();
   }
   if (NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
-    if (countNoticeMatrix < 6) {
+    if (countNoticeMatrix < countBlink) {
       printText(0, MAX_DEVICES-1, "        ");
       delay(50);
       printText(0, MAX_DEVICES-1, string2char(strNoticeMatrix));
