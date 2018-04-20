@@ -55,15 +55,15 @@ bool flagScroll = false;
 
 ESP8266WebServer server(80);
 
-#define RESET 4 
-#define VT 16
+#define RESET 3 
+#define VT 4
 // #define RESET 4 
 // #define VT 5
-#define D0 2
+#define D0 16
 #define D1 15
 #define D2 12
 #define D3 5
-#define LED 3
+#define LED 2
 
 // #define SERVER_PIN A0 
 #define SERVER_PIN 5 
@@ -292,7 +292,7 @@ long timeRandom = 10000;
 long t1 = 0;
 long intNumber = 0;
 String resultRF = "";
-int idChannel = -1;
+int idChannel = 0;
 bool flagForward = false;
 
 
@@ -357,7 +357,7 @@ void loop()
   
   #if RFTEST
     //resultIdRF = ListenRF();
-    idChannel = ListenIdRF();
+    // idChannel = ListenIdRF();
    
   #else 
     if (millis() - t1 > timeRandom) {
@@ -378,7 +378,7 @@ void loop()
     String packet = EncodePacket(apSSID, data);
     resultRF = packet;
     pushBufferRF(resultRF);
-    idChannel = -1;
+    idChannel = 0;
   }else resultRF = "";
   
   receivedUDP = listenUDP();
@@ -586,7 +586,26 @@ void GPIO()
   pinMode(D1,INPUT_PULLUP); 
   pinMode(D2,INPUT_PULLUP); 
   pinMode(D3,INPUT_PULLUP); 
+  pinMode(VT, INPUT_PULLUP); 
+  attachInterrupt(digitalPinToInterrupt(VT), handleInterruptVT, RISING); 
 
+}
+
+int flagInterrupt;
+//This program get executed when interrupt is occures i.e.change of input state
+void handleInterruptVT() { 
+  if (flagInterrupt) 
+    return;
+  flagInterrupt = true;
+  idChannel = ListenIdRF();
+  flagInterrupt = false;
+}
+
+void delayMs(int x)   {
+  for(int i=0; i<=x; i++)   
+  {
+    delayMicroseconds(1000);
+  }
 }
 
 void ChannelRFDefault(){
@@ -635,52 +654,7 @@ bool isValidStringIP(String strIP){
   //show("IP false");
   return false;
 }
-String ListenRF()
-{
-  int Di = -1;
-  if (analogRead(VT) > 500)
-  {
-    show("VT HIGH");
-    Di = ScanRF();
-  }
-  if (Di != -1)
-  {
-    if (Di == D0)
-      return "D0";
-    else if (Di == D1)
-      return "D1";
-    else if (Di == D2)
-      return "D2";
-    else if (Di == D3)
-      return "D3";
-  }
-  return "";
-}
 
-
-int ScanRF()
-{
-  if (digitalRead(D0)==HIGH)
-  {
-    while (digitalRead(D0)==HIGH);
-    return D0;
-  }
-  else if (digitalRead(D1)==HIGH)
-  {
-    while (digitalRead(D1)==HIGH);
-    return D1;
-  }else if (digitalRead(D2)==HIGH)
-  {
-    while (digitalRead(D2)==HIGH);
-    return D2;
-  }
-  else if (digitalRead(D3)==HIGH)
-  {
-    while (digitalRead(D3)==HIGH);
-    return D3;
-  }
-  return -1;
-}
 int RFPIN[4] = {D0, D1, D2, D3};
 int ListenIdRF()
 {
@@ -689,10 +663,10 @@ int ListenIdRF()
   if (digitalRead(VT) == HIGH)
   {
     long timeOut = millis();
-    delay(50);
+    delayMs(50);
     show("VT HIGH");
 //    while (analogRead(VT) > 500 && millis() - timeOut < 2000){
-    if (digitalRead(VT) == HIGH){
+    while (digitalRead(VT) == HIGH){
        Di = 0;
        for (int i = 0; i < 4; i++){
          if (digitalRead(RFPIN[i]) == HIGH) {
@@ -700,7 +674,7 @@ int ListenIdRF()
          }
        }
        while (digitalRead(VT) == HIGH) {
-          delay(10);
+          delayMs(10);
         }
     }
     show(String(Di));
