@@ -300,6 +300,7 @@ long timeShow;
 long DelayShow  = 1000;
 
 int countBlink = 20;
+int countRing = 4;
 void loop()
 {
   server.handleClient();
@@ -467,16 +468,18 @@ void loop()
     if (lengthBuffNotice >= 1) {
       DelayShow = countBlink * 500;
     } else {
-      DelayShow = 1000;
+      DelayShow = 500;
     }
     String tg = PopBuffNotice();
-    show("Pop: " + tg + " Length:" + String(lengthBuffNotice));
     if (tg != "------") {
+      show("Pop: " + tg + " Length:" + String(lengthBuffNotice));
       strNoticeMatrix = tg;
       show("Change Notice!");
 
       NoticeRing = true;
       NoticeMatrix = true;
+      countNoticeRing = 0;
+      countNoticeMatrix = 0;
     }
     FlagNotice = false;
     timeShow = millis();
