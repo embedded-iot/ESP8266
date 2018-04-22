@@ -197,6 +197,9 @@ String buffNotice[maxBuffNotice];
 
 #define  MIN_TIME_NOTICE 15000
 
+bool flagBreak;
+bool flagRestartDevice;
+
 void setup()
 {
   delay(500);
@@ -206,37 +209,41 @@ void setup()
   idWebSite = 0;
   isLogin = false;
   //WiFi.disconnect();
-  EEPROM.begin(512);
+  show("flagRestartDevice: " + String(flagRestartDevice));
+  // if (flagRestartDevice == false) {
+    EEPROM.begin(512);
 
-  // Display initialisation
-  mx.begin();
-  mx.setShiftDataInCallback(scrollDataSource);
-  mx.setShiftDataOutCallback(scrollDataSink);
+    // Display initialisation
+    mx.begin();
+    mx.setShiftDataInCallback(scrollDataSource);
+    mx.setShiftDataOutCallback(scrollDataSink);
 
-  scrollDelay = SCROLL_DELAY;
-  // PrintMatrix("START!", 0);
-  printText(0, MAX_DEVICES-1, "START");
-  // TurnOnScroll();
-  // PrintMatrix("MBELL    ", 0);
-  GPIO();
-    
-  if (EEPROM.read(500) != 255 || flagClear){
-    ClearEEPROM();
-    ConfigDefault();
-    WriteConfig();
-  }
-  ReadConfig();
-  //delay(1000);
-
+    scrollDelay = SCROLL_DELAY;
+    // PrintMatrix("START!", 0);
+    //printText(0, MAX_DEVICES-1, "START");
+    // TurnOnScroll();
+    // PrintMatrix("MBELL    ", 0);
+    GPIO();
+      
+    if (EEPROM.read(500) != 255 || flagClear){
+      ClearEEPROM();
+      ConfigDefault();
+      WriteConfig();
+    }
+    ReadConfig();
+    //delay(1000);
+  // }
   WiFi.mode(WIFI_AP_STA);
-  delay(1000);
+  // delay(1000);
   ConfigNetwork();
   
   //ConnectWifi(4000);
   //isConnectAP
   //AccessPoint();
   //delay(1000);
-  ConnectWifi(timeStation); 
+  if (isReconnectAP) {
+    ConnectWifi(timeStation); 
+  }
   //delay(1000);
   if (isConnectAP == false)
   {
@@ -245,10 +252,10 @@ void setup()
     show("Set WIFI_AP");
     //ConfigNetwork();
   }
-  delay(1000);
+  // delay(1000);
   AccessPoint();
 
-  delay(1000);
+  // delay(1000);
  
   StartServer();
   Serial.println("Begin TCP Server");
@@ -264,21 +271,23 @@ void setup()
   show("IP broadCast");
   show(broadCast.toString());
   // digitalWrite(LED,HIGH);
-  delay(1000);
+  // delay(1000);
   // Notify: Connect AP success. 
-  if (isConnectAP == false){
-    blinkLed(3,500);
+  if (isReconnectAP && isConnectAP == false){
+    // blinkLed(3,500);
   }
   if (isConnectAP) {
     SendUdp(broadCast.toString(), udpPort,"#S#" + apSSID + "##" + apSSID + "#E#");
-    delay(1000);
+    // delay(1000);
     SendUdp(broadCast.toString(), udpPort,"#S#" + apSSID + "##START#E#");
   }
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
-  printText(0, MAX_DEVICES - 1, "End!");
+  // if (flagRestartDevice == false) {
+    printText(0, MAX_DEVICES - 1, "--------");
+  // }
   // PrintMatrix("END     ", 0);
-  delay(1000);
+  // delay(1000);
   //TurnOnScroll();
   tNotice = millis();
   tStation = tNotice;
@@ -300,7 +309,6 @@ long timeShow;
 long DelayShow  = 1000;
 
 int countBlink = 20;
-int countRing = 4;
 void loop()
 {
   server.handleClient();
@@ -311,13 +319,13 @@ void loop()
     t = millis();
   }
 
-  if (isReconnectAP && WiFi.status() != WL_CONNECTED  && millis() - tNotice > timeoutNoticeNotConnect) {
+  if (isReconnectAP && (NoticeMatrix == false && NoticeRing == false) && WiFi.status() != WL_CONNECTED  && millis() - tNotice > timeoutNoticeNotConnect) {
     blinkLed(2, 500);
     show("Device not connect Access Point. Check connect again!");
     tNotice = millis();
   }
 
-  if (isReconnectAP && WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
+  if (isReconnectAP && (NoticeMatrix == false && NoticeRing == false) && WiFi.status() != WL_CONNECTED && millis() - tStation > timeReconectToOtherAP) {
     show("Restart Device, Reconnect AP");
     //tcpServer.close();
     
@@ -336,7 +344,9 @@ void loop()
     // } else {
     //   show("Not connected To Other AP - " + staSSID);
     // }
+    flagRestartDevice = true;
     setup();
+    flagRestartDevice = false;
     tStation = millis();
   }
 
@@ -601,6 +611,7 @@ void handleInterruptVT() {
     return;
   flagInterrupt = true;
   idChannel = ListenIdRF();
+  flagBreak = true;
   flagInterrupt = false;
 }
 
@@ -863,7 +874,7 @@ void AccessPoint()
 void ConnectWifi(long timeOut)
 {
   show("Connect to other Access Point");
-  delay(1000);
+  // delay(1000);
   int count = timeOut / 500;
   show("Connecting");
   show(staSSID);
@@ -871,6 +882,10 @@ void ConnectWifi(long timeOut)
   WiFi.begin(staSSID.c_str(),staPASS.c_str());
   
   while (WiFi.status() != WL_CONNECTED && --count > 0) {
+    if (flagBreak) {
+      flagBreak = false;
+      return;
+    }
     delay(500);
     Serial.print(".");
   }
