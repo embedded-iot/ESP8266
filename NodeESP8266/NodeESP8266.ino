@@ -210,13 +210,13 @@ void setup()
 {
   delay(500);
   // WiFi.disconnect();
-  Serial.begin(115200);
-  Serial.println();
-  idWebSite = 0;
-  isLogin = false;
-  //WiFi.disconnect();
-  show("flagRestartDevice: " + String(flagRestartDevice));
-  // if (flagRestartDevice == false) {
+  if (flagRestartDevice == false) {
+    Serial.begin(115200);
+    Serial.println();
+    idWebSite = 0;
+    isLogin = false;
+    //WiFi.disconnect();
+    show("flagRestartDevice: " + String(flagRestartDevice));
     EEPROM.begin(512);
 
     // Display initialisation
@@ -226,7 +226,7 @@ void setup()
 
     scrollDelay = SCROLL_DELAY;
     // PrintMatrix("START!", 0);
-    //printText(0, MAX_DEVICES-1, "START");
+    printText(2, 0, MAX_DEVICES-1, "START");
     // TurnOnScroll();
     // PrintMatrix("MBELL    ", 0);
     GPIO();
@@ -238,7 +238,7 @@ void setup()
     }
     ReadConfig();
     //delay(1000);
-  // }
+  }
   WiFi.mode(WIFI_AP_STA);
   // delay(1000);
   ConfigNetwork();
@@ -289,9 +289,9 @@ void setup()
   }
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
-  // if (flagRestartDevice == false) {
-  printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
-  // }
+  if (flagRestartDevice == false) {
+    printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
+  }
   // PrintMatrix("END     ", 0);
   // delay(1000);
   //TurnOnScroll();
@@ -360,6 +360,8 @@ void loop()
     //   show("Not connected To Other AP - " + staSSID);
     // }
     flagRestartDevice = true;
+    tClearScreen = millis();
+    flagClearScreen = true;
     setup();
     flagRestartDevice = false;
     tStation = millis();
@@ -912,7 +914,7 @@ void ConnectWifi(long timeOut)
   show(staSSID);
   show(staPASS);
   WiFi.begin(staSSID.c_str(),staPASS.c_str());
-  
+  flagBreak = false;
   while (WiFi.status() != WL_CONNECTED && --count > 0) {
     if (flagBreak) {
       flagBreak = false;
