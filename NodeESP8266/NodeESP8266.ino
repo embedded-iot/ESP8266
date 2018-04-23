@@ -144,7 +144,7 @@ String SoftIP, LocalIP;
 
 String MAC;
 long portTCP;
-long timeStation = 10000;
+long timeStation = 20000;
 
 String bufferRF[LENGTH_BUFFER_RF+1];
 int flagRF[LENGTH_BUFFER_RF+1];
@@ -200,10 +200,16 @@ String buffNotice[maxBuffNotice];
 bool flagBreak;
 bool flagRestartDevice;
 
+String labelDefault = "mbell";
+
+long timeoutClearScreen = 3 * 60 * 1000;
+long tClearScreen;
+bool flagClearScreen;
+int startColumn = 3;
 void setup()
 {
   delay(500);
-  WiFi.disconnect();
+  // WiFi.disconnect();
   Serial.begin(115200);
   Serial.println();
   idWebSite = 0;
@@ -284,7 +290,7 @@ void setup()
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
   // if (flagRestartDevice == false) {
-    printText(0, MAX_DEVICES - 1, "--------");
+  printText(4, 0, MAX_DEVICES - 1, string2char(labelDefault));
   // }
   // PrintMatrix("END     ", 0);
   // delay(1000);
@@ -309,11 +315,20 @@ long timeShow;
 long DelayShow  = 1000;
 
 int countBlink = 20;
+
+
 void loop()
 {
   server.handleClient();
   scrollText();
-  
+
+  if (flagClearScreen && millis() - tClearScreen > timeoutClearScreen) {
+    printText(4, 0, MAX_DEVICES - 1, string2char(labelDefault));
+    show("Clear Screen Matrix");
+    tClearScreen = millis();
+    flagClearScreen = false;
+  }
+
   if (millis() - t > timeLogout) {
     isLogin = false;
     t = millis();
@@ -450,8 +465,8 @@ void loop()
           String stg = getData(stringClient);
           if (stg == strNoticeMatrix) {
             show("OK! Clear Screen");
-            strNoticeMatrix = "------";
-            printText(0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+            strNoticeMatrix = labelDefault;
+            printText(0, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
           }
           pushBufferRF(stringClient);
           SendUdp(broadCast.toString(), udpPort, stringClient);
@@ -481,7 +496,7 @@ void loop()
       DelayShow = 500;
     }
     String tg = PopBuffNotice();
-    if (tg != "------") {
+    if (tg != labelDefault) {
       show("Pop: " + tg + " Length:" + String(lengthBuffNotice));
       strNoticeMatrix = tg;
       show("Change Notice!");
@@ -490,6 +505,10 @@ void loop()
       NoticeMatrix = true;
       countNoticeRing = 0;
       countNoticeMatrix = 0;
+      startColumn = 1;
+    } else {
+      // NoticeMatrix = false;
+      // startColumn = 3;
     }
     FlagNotice = false;
     timeShow = millis();
@@ -499,7 +518,11 @@ void loop()
     if (countNoticeRing / 3 < 2 && countNoticeRing % 3 == 0) {
       digitalWrite(LED,HIGH);
       // show("Ring LED");
-      delay(200);
+      if (countNoticeRing / 3 == 0){
+        delay(500);
+      } else {
+        delay(1000);
+      }
     }
     if (countNoticeRing < 6) {
       countNoticeRing++;
@@ -512,12 +535,15 @@ void loop()
   }
   if (NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
     if (countNoticeMatrix < countBlink) {
-      printText(0, MAX_DEVICES-1, "        ");
+      printText(0, 0, MAX_DEVICES-1, "        ");
       delay(50);
-      printText(0, MAX_DEVICES-1, string2char(strNoticeMatrix));
-      // show("Ring MATRIX");
+      printText(0, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+      show("Ring MATRIX");
       countNoticeMatrix++;
     } else {
+      show("flagClearScreen !");
+      flagClearScreen = true;
+      tClearScreen = millis();
       countNoticeMatrix = 0;
       NoticeMatrix = false;
     }
@@ -553,7 +579,7 @@ void PushBuffNotice(String s) {
 }
 String PopBuffNotice() {
   if (lengthBuffNotice <= 0) {
-    return "------";
+    return labelDefault;
   // } else if (lengthBuffNotice == 1) {
   //   return buffNotice[0];
   } else {
@@ -1476,7 +1502,7 @@ void setColumn(int pos) {
 
 // Display String Matrix
 void PrintMatrix(String s, int pos) {
-  printText(0, MAX_DEVICES-1, "        ");
+  printText(0, 0, MAX_DEVICES-1, "        ");
   strcpy(curMessage, s.c_str());
   newMessage[0] = '\0';
   setColumn(pos);
@@ -1491,7 +1517,7 @@ void TurnOffScroll() {
   flagScroll = false;
 }
 
-void printText(uint8_t modStart, uint8_t modEnd, char *pMsg)
+void printText(uint8_t columnStart, uint8_t modStart, uint8_t modEnd, char *pMsg)
 // Print the text string to the LED matrix modules specified.
 // Message area is padded with blank columns after printing.
 {
@@ -1499,7 +1525,7 @@ void printText(uint8_t modStart, uint8_t modEnd, char *pMsg)
   uint8_t	  curLen;
   uint16_t  showLen;
   uint8_t	  cBuf[8];
-  int16_t   col = ((modEnd + 1) * COL_SIZE) - 1;
+  int16_t   col = ((modEnd + 1) * COL_SIZE) - 1 - columnStart;
 
   mx.control(modStart, modEnd, MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
 
