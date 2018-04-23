@@ -290,7 +290,7 @@ void setup()
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
   // if (flagRestartDevice == false) {
-  printText(4, 0, MAX_DEVICES - 1, string2char(labelDefault));
+  printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
   // }
   // PrintMatrix("END     ", 0);
   // delay(1000);
@@ -323,7 +323,7 @@ void loop()
   scrollText();
 
   if (flagClearScreen && millis() - tClearScreen > timeoutClearScreen) {
-    printText(4, 0, MAX_DEVICES - 1, string2char(labelDefault));
+    printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
     show("Clear Screen Matrix");
     tClearScreen = millis();
     flagClearScreen = false;
@@ -466,7 +466,13 @@ void loop()
           if (stg == strNoticeMatrix) {
             show("OK! Clear Screen");
             strNoticeMatrix = labelDefault;
-            printText(0, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+            printText(0, 0, MAX_DEVICES-1, "        ");
+            delay(50);
+            printText(3, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+            NoticeMatrix = false;
+            NoticeRing = false;
+            countNoticeMatrix = 0;
+            countNoticeRing = 0;
           }
           pushBufferRF(stringClient);
           SendUdp(broadCast.toString(), udpPort, stringClient);
@@ -538,7 +544,7 @@ void loop()
       printText(0, 0, MAX_DEVICES-1, "        ");
       delay(50);
       printText(0, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
-      show("Ring MATRIX");
+      // show("Ring MATRIX");
       countNoticeMatrix++;
     } else {
       show("flagClearScreen !");
