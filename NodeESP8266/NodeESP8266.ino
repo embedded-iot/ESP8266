@@ -179,7 +179,7 @@ void GiaTriThamSo();
 long tStation = 0;
 long timeReconectToOtherAP = 2 * 60 * 1000; // 10 phut
 long tNotice = 0;
-long timeoutNoticeNotConnect = 10 * 1000;
+long timeoutNoticeNotConnect = 30 * 1000;
 
 int countNoticeMatrix;
 long timeNoticeMatrix;
@@ -226,7 +226,7 @@ void setup()
 
     scrollDelay = SCROLL_DELAY;
     // PrintMatrix("START!", 0);
-    printText(2, 0, MAX_DEVICES-1, "START");
+    // printText(2, 0, MAX_DEVICES-1, "START");
     // TurnOnScroll();
     // PrintMatrix("MBELL    ", 0);
     GPIO();
@@ -335,7 +335,7 @@ void loop()
   }
 
   if (isReconnectAP && (NoticeMatrix == false && NoticeRing == false) && WiFi.status() != WL_CONNECTED  && millis() - tNotice > timeoutNoticeNotConnect) {
-    blinkLed(2, 500);
+    blinkLed(2, 300);
     show("Device not connect Access Point. Check connect again!");
     tNotice = millis();
   }
@@ -475,6 +475,7 @@ void loop()
             NoticeRing = false;
             countNoticeMatrix = 0;
             countNoticeRing = 0;
+            //FilterBuffNotice(stg);
           }
           pushBufferRF(stringClient);
           SendUdp(broadCast.toString(), udpPort, stringClient);
@@ -527,9 +528,9 @@ void loop()
       digitalWrite(LED,HIGH);
       // show("Ring LED");
       if (countNoticeRing / 3 == 0){
-        delay(500);
+        delay(300);
       } else {
-        delay(1000);
+        delay(600);
       }
     }
     if (countNoticeRing < 6) {
@@ -597,6 +598,24 @@ String PopBuffNotice() {
       buffNotice[i] = buffNotice[i+1];
     }
     return fontBuff;
+  }
+}
+void FilterBuffNotice(String s) {
+  String tg[maxBuffNotice];
+  int indexTg = 0;
+  show("Filter Notice:"); 
+  if (s.length() < 0) {
+    return;
+  }
+  show(s);
+  for (int i = 0; i < lengthBuffNotice; i++) {
+    if (buffNotice[i] != s) {
+      tg[indexTg++] = buffNotice[i];
+    }
+  }
+  lengthBuffNotice = indexTg;
+  for (int i = 0; i < lengthBuffNotice; i++) {
+    buffNotice[i] = tg[i];
   }
 }
 void show(String s)
@@ -1004,6 +1023,7 @@ String Title(){
     .noboder {border: none;}\
     .card-rf {background: yellow;color: red;font-size: 90px;text-align: center;}\
     .tr-active {background: #0095ff !important;}\
+    .important {color: red;}\
   </style>\
   </head>";
   return html;
@@ -1062,16 +1082,6 @@ String ContentConfig(){
     </div>\
     <div class=\"content\">\
       <form action=\"\" method=\"get\">\
-        <div class=\"subtitle\">Chế độ Station (Kết nối tới 1 wifi khác)</div>\
-        <div class=\"left\">Tên wifi</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtSTAName\" value=\""+staSSID+"\" required></div>\
-        <div class=\"left\">Mật khẩu</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Password wifi\" name=\"txtSTAPass\" value=\""+staPASS+"\"></div>\
-        " + DisplayStationIP() + "\
-        <div class=\"left\">Trạng thái kết nối</div>\
-        <div class=\"right\">: "+(isConnectAP == true ? "Đã kết nối" : "Không kết nối")+"</div>\
-        <div class=\"left\">Tự động kết nối lại</div>\
-        <div class=\"right\">: <input type=\"radio\" name=\"chboxReconnectAP\" value=\"true\" " + (isReconnectAP ? "checked" : "") + ">Tự động<input type=\"radio\" name=\"chboxReconnectAP\" value=\"false\" " + (!isReconnectAP ? "checked" : "") + ">Không</div>\
         <div class=\"subtitle\">Chế độ Access Point (Phát ra wifi)</div>\
         <div class=\"left\">Tên wifi</div>\
         <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtAPName\" value=\""+apSSID+"\" required></div>\
@@ -1090,6 +1100,16 @@ String ContentConfig(){
         <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" disabled value=\""+String(PORT_UDP_DEFAULT)+"\" ></div>\
         <div class=\"left\">Đạng kết nối!</div>\
         <div class=\"right\">: <input type=\"radio\" name=\"chboxServer\" value=\"true\" " + (isServer ? "checked" : "") + ">Đa điểm<input type=\"radio\" name=\"chboxServer\" value=\"false\" " + (!isServer ? "checked" : "") + ">Đơn điểm</div>\
+        <div class=\"subtitle\">Chế độ Station (Kết nối tới 1 wifi khác)</div>\
+        <div class=\"left\">Tên wifi</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtSTAName\" value=\""+staSSID+"\" required></div>\
+        <div class=\"left\">Mật khẩu</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Password wifi\" name=\"txtSTAPass\" value=\""+staPASS+"\"></div>\
+        " + DisplayStationIP() + "\
+        <div class=\"left\">Trạng thái kết nối</div>\
+        <div class=\"right important\">: "+(isConnectAP == true ? "Đã kết nối" : "Không kết nối")+"</div>\
+        <div class=\"left\">Tự động kết nối lại</div>\
+        <div class=\"right\">: <input type=\"radio\" name=\"chboxReconnectAP\" value=\"true\" " + (isReconnectAP ? "checked" : "") + ">Tự động<input type=\"radio\" name=\"chboxReconnectAP\" value=\"false\" " + (!isReconnectAP ? "checked" : "") + ">Không</div>\
         <hr>\
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"?txtRefresh=true\">Làm mới</a></button>\
@@ -1098,7 +1118,7 @@ String ContentConfig(){
           <button type=\"submit\"><a href=\"?txtLogout=true\">Đăng xuất</a></button>\
         </div>\
         <hr>\
-        <a href=\"/rfconfig\" target=\"_blank\">Thay đổi tên RF!</a>\
+        <a href=\"/rfconfig\" target=\"_blank\">Mã hóa tên!</a>\
       </form>\
     </div>\
   </body>\
@@ -1193,6 +1213,7 @@ void pushBufferRF(String packet){
   if (packet.indexOf("OK") > 0) {
     String nameAP = getAddress(packet);
     String strData = getData(packet);
+    FilterBuffNotice(strData);
     for (int i = 0 ; i< LENGTH_BUFFER_RF ; i++){
       if (bufferRF[i].indexOf(nameAP) >= 0 && bufferRF[i].indexOf(strData+"#E") >= 0) {
         flagRF[i] = 1;
