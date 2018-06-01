@@ -231,7 +231,7 @@ void setup()
     // PrintMatrix("MBELL    ", 0);
     GPIO();
       
-    if (EEPROM.read(500) != 255 || flagClear){
+    if (EEPROM.read(500) == EEPROM.read(0) || flagClear){
       ClearEEPROM();
       ConfigDefault();
       WriteConfig();
@@ -323,6 +323,7 @@ void loop()
   scrollText();
 
   if (flagClearScreen && millis() - tClearScreen > timeoutClearScreen) {
+    printText(0, 0, MAX_DEVICES-1, "        ");
     printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
     show("Clear Screen Matrix");
     tClearScreen = millis();
