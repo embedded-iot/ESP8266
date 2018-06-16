@@ -11,7 +11,6 @@
                     "C:\\Users\\MEOMEO\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\2.3.0\\cores\\esp8266"
                 ]
             },
-            
             "intelliSenseMode": "msvc-x64",
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
@@ -39,5 +38,5 @@
             "intelliSenseMode": "clang-x64"
         }
     ],
-    "version": 3
+    "version": 4
 }
