@@ -16,7 +16,7 @@
  * DATA_PIN	  13   GPIO13 or MOSI
  * CS_PIN		  0    GPIO0      // or SS
  **********************************************************************************/
-
+#include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -103,21 +103,21 @@ WiFiServer tcpServer(PORT_TCP_DEFAULT);
 #define PORT_UDP_DEFAULT 4210
 WiFiUDP Udp;
 
-#define PTRO1
+#define PTRO
 #ifdef  PTRO
-  #define STA_SSID_DEFAULT "G"
-  #define STA_PASS_DEFAULT "132654789"
+  #define STA_SSID_DEFAULT "TTQ"
+  #define STA_PASS_DEFAULT "0987654321"
   #define AP_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT)
   #define AP_PASS_DEFAULT ""
-  #define STA_IP_DEFAULT "192.168.0.122"
-  #define STA_GATEWAY_DEFAULT "192.168.0.1"
+  #define STA_IP_DEFAULT "192.168.1.122"
+  #define STA_GATEWAY_DEFAULT "192.168.1.1"
   #define STA_SUBNET_DEFAULT "255.255.255.0"
   #define AP_IP_DEFAULT "192.168." + String(ID_DEFAULT) + ".1"
   #define AP_GATEWAY_DEFAULT "192.168." + String(ID_DEFAULT) + ".1"
   #define AP_SUBNET_DEFAULT "255.255.255.0"
 #else 
   #define STA_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT - 1)
-  #define STA_PASS_DEFAULT ""
+  #define STA_PASS_DEFAULT "0987654321"
   #define AP_SSID_DEFAULT NAME_DEFAULT +String(ID_DEFAULT)
   #define AP_PASS_DEFAULT ""
   #define STA_IP_DEFAULT "192.168." + String(ID_DEFAULT - 1) + ".122"
@@ -131,7 +131,7 @@ WiFiUDP Udp;
 IPAddress broadCast;
 
 bool isServer =  false; 
-bool isReconnectAP = false;
+bool isReconnectAP = true;
 bool flagClear = false;
 
 bool isLogin = false;
@@ -272,7 +272,7 @@ void setup()
   }
   show("begin UDP port");
   Udp.begin(udpPort);
-  String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".255";
+  String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".1";
   broadCast = convertStringToIPAddress(strBroadCast);
   show("IP broadCast");
   show(broadCast.toString());
