@@ -69,6 +69,7 @@ ESP8266WebServer server(80);
 #define SERVER_PIN 5 
 
 #define DEBUGGING
+#define MATRIX false    // If define, display matrix
 #define RFTEST true
 #define RFCHANNEL 16
 #define LENGTH_BUFFER_RF 10
@@ -501,7 +502,7 @@ void loop()
 
   if (millis() - timeShow > DelayShow) {
     if (lengthBuffNotice >= 1) {
-      DelayShow = countBlink * 500;
+      DelayShow = (MATRIX ? countBlink : 2) * 500;
     } else {
       DelayShow = 500;
     }
@@ -525,10 +526,11 @@ void loop()
   }
 
   if (NoticeRing && millis() - timeNoticeRing > 1000) {
-    if (countNoticeRing / 3 < 2 && countNoticeRing % 3 == 0) {
-      digitalWrite(LED,HIGH);
+    int tg = (MATRIX ? 3 : 1);
+    if (countNoticeRing / tg < 2 && countNoticeRing % tg == 0) {
+      digitalWrite(LED, HIGH);
       // show("Ring LED");
-      if (countNoticeRing / 3 == 0){
+      if (countNoticeRing / tg == 0){
         delay(300);
       } else {
         delay(600);
@@ -543,7 +545,7 @@ void loop()
     digitalWrite(LED,LOW);
     timeNoticeRing = millis();
   }
-  if (NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
+  if (MATRIX && NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
     if (countNoticeMatrix < countBlink) {
       printText(0, 0, MAX_DEVICES-1, "        ");
       delay(50);
