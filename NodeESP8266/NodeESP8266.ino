@@ -103,12 +103,12 @@ WiFiServer tcpServer(PORT_TCP_DEFAULT);
 #define PORT_UDP_DEFAULT 4210
 WiFiUDP Udp;
 
-#define PTRO
+#define PTRO1
 #ifdef  PTRO
   #define STA_SSID_DEFAULT "TTQ"
   #define STA_PASS_DEFAULT "0987654321"
   #define AP_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT)
-  #define AP_PASS_DEFAULT ""
+  #define AP_PASS_DEFAULT "0987654321"
   #define STA_IP_DEFAULT "192.168.1.122"
   #define STA_GATEWAY_DEFAULT "192.168.1.1"
   #define STA_SUBNET_DEFAULT "255.255.255.0"
@@ -131,7 +131,7 @@ WiFiUDP Udp;
 IPAddress broadCast;
 
 bool isServer =  false; 
-bool isReconnectAP = true;
+bool isReconnectAP = false;
 bool flagClear = false;
 
 bool isLogin = false;
@@ -301,7 +301,7 @@ void setup()
 }
 
 WiFiClient client ;
-long timeLogout = 30000;
+long timeLogout = 120000;
 long t = 0;
 long timeRandom = 10000;
 long t1 = 0;
@@ -1002,29 +1002,40 @@ String Title(){
   String html = "<html>\
   <head>\
   <meta charset=\"utf-8\">\
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\
   <title>Config</title>\
   <style>\
     * {margin:0;padding:0}\
-    body {width: 600px;height: auto;border: red 3px solid; margin: 0 auto; box-sizing: border-box}\
+    body {width: 100%; height: auto;border: red 3px solid; margin: 0 auto; box-sizing: border-box}\
+    form {font-size: 12px;}\
     .head1{ display: flex; height: 50px;border-bottom: red 3px solid;}\
     .head1 h1{margin: auto;}\
     table, th, td { border: 1px solid black;border-collapse: collapse;}\
     tr{ height: 40px;text-align: center;font-size: 20px;}\
-    input { height: 25px;text-align: center;}\
-    button {height: 25px;width: 100px;margin: 5px;}\
+    .input, input { height: 25px;text-align: center;width: 90%;}\
+    input[type=\"radio\"] {width: auto;}\
+    button {height: 25px;min-width: 100px;margin: 5px;}\
     button:hover {background: #ccc; font-weight: bold; cursor: pointer;}\
     .subtitle {text-align: left;font-weight: bold;}\
     .content {padding: 10px 20px;}\
-    .left , .right { width: 50%; float: left;text-align: left;line-height: 25px;padding: 5px 0;}\
+    .left , .right { width: 50%; float: left;text-align: left;line-height: 25px;padding: 5px 0; vertical-align: top;}\
     .left {text-align: right}\
-    .listBtn {text-align: center}\
+    .listBtn {width: 100%; display: inline-block; text-align: center}\
     a {text-decoration: none;}\
     table {width: 100%;}\
     .column {width: 50%;text-align: center;}\
+    .column3 {width: 33.3%;text-align: center;}\
     .noboder {border: none;}\
     .card-rf {background: yellow;color: red;font-size: 90px;text-align: center;}\
+    .align-left {text-align: left;}\
+    .small-table .row {height: auto;}\
     .tr-active {background: #0095ff !important;}\
     .important {color: red;}\
+    .row-block {display: inline-block; width: 100%;}\
+    @media only screen and (min-width: 768px) {\
+      body {width: 600px;}\
+      form {font-size: 18px;}\
+      }\
   </style>\
   </head>";
   return html;
@@ -1054,10 +1065,10 @@ String ContentLogin(){
     </div>\
     <div class=\"content\">\
       <form action=\"\" method=\"get\">\
-        <div class=\"left\">Tài khoản</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtNameAP\" value=\""+apSSID+"\" required></div>\
-        <div class=\"left\">Mật khẩu</div>\
-        <div class=\"right\">: <input class=\"input\" type=\"password\" placeholder=\"Password\" name=\"txtPassPortTCP\" value=\"\" required></div>\
+        <div class=\"row-block\"><div class=\"row-block\"><div class=\"left\">Tài khoản</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtNameAP\" value=\""+apSSID+"\" required></div></div>\
+        <div class=\"row-block\"><div class=\"row-block\"><div class=\"left\">Mật khẩu</div>\
+        <div class=\"right\">: <input class=\"input\" type=\"password\" placeholder=\"Password\" name=\"txtPassPortTCP\" value=\"\" required></div></div>\
         <div class=\"listBtn\">\
         <a href=\"/home\" target=\"_blank\">Trang chủ!</a>\
       <button type=\"submit\">Đăng nhập</button></div>\
@@ -1070,13 +1081,12 @@ String ContentLogin(){
 String DisplayStationIP() {
   String html;
   if (isConnectAP) {
-    return "<div class=\"left\">Địa chỉ IP</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" disabled name=\"txtSTAIP\" value=\""+staIP+"\"></div>";
+    return "<div class=\"row-block\"><div class=\"left\">Địa chỉ IP</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" disabled name=\"txtSTAIP\" value=\""+staIP+"\"></div></div>";
   }
   return "";
 }
 String ContentConfig(){
-  String strBroadCast = staIP.substring(0,staIP.lastIndexOf(".")) + ".255";
   String content = "<body>\
     <div class=\"head1\">\
       <h1>Cài đặt thiết bị</h1>\
@@ -1084,42 +1094,34 @@ String ContentConfig(){
     <div class=\"content\">\
       <form action=\"\" method=\"get\">\
         <div class=\"subtitle\">Chế độ Access Point (Phát ra wifi)</div>\
-        <div class=\"left\">Tên wifi</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtAPName\" value=\""+apSSID+"\" required></div>\
-        <div class=\"left\">Mật khẩu</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Password wifi\" name=\"txtAPPass\" value=\""+apPASS+"\"></div>\
-        <div class=\"left\">Địa chỉ IP</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtAPIP\" disabled value=\""+apIP+"\"></div>\
-        <div class=\"left\">Địa chỉ MAC</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"xx-xx-xx-xx-xx-xx\" disabled value=\""+MAC+"\"></div>\
-        <div class=\"subtitle\">Cài đặt TCP/UDP</div>\
-        <div class=\"left\">Cổng TCP</div>\
-        <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" disabled value=\""+String(PORT_TCP_DEFAULT)+"\" ></div>\
-        <div class=\"left\">Địa chỉ Broadcast</div>\
-        <div class=\"right\">: <input min=\"0\" class=\"input\" disabled value=\""+ strBroadCast +"\" ></div>\
-        <div class=\"left\">Cổng UPD</div>\
-        <div class=\"right\">: <input type=\"number\" min=\"0\" class=\"input\" disabled value=\""+String(PORT_UDP_DEFAULT)+"\" ></div>\
-        <div class=\"left\">Đạng kết nối!</div>\
-        <div class=\"right\">: <input type=\"radio\" name=\"chboxServer\" value=\"true\" " + (isServer ? "checked" : "") + ">Đa điểm<input type=\"radio\" name=\"chboxServer\" value=\"false\" " + (!isServer ? "checked" : "") + ">Đơn điểm</div>\
+        <div class=\"row-block\"><div class=\"left\">Tên wifi</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" maxlength=\"15\" name=\"txtAPName\" value=\""+apSSID+"\" required></div></div>\
+        <div class=\"row-block\"><div class=\"left\">Mật khẩu</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Password wifi\" maxlength=\"15\" name=\"txtAPPass\" value=\""+apPASS+"\"></div></div>\
+        <div class=\"row-block\"><div class=\"left\">Địa chỉ IP</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"xxx.xxx.xxx.xxx\" name=\"txtAPIP\" disabled value=\""+apIP+"\"></div></div>\
         <div class=\"subtitle\">Chế độ Station (Kết nối tới 1 wifi khác)</div>\
-        <div class=\"left\">Tên wifi</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" name=\"txtSTAName\" value=\""+staSSID+"\" required></div>\
-        <div class=\"left\">Mật khẩu</div>\
-        <div class=\"right\">: <input class=\"input\" placeholder=\"Password wifi\" name=\"txtSTAPass\" value=\""+staPASS+"\"></div>\
+        <div class=\"row-block\"><div class=\"left\">Tên wifi</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Name wifi\" maxlength=\"15\" name=\"txtSTAName\" value=\""+staSSID+"\" required></div></div>\
+        <div class=\"row-block\"><div class=\"left\">Mật khẩu</div>\
+        <div class=\"right\">: <input class=\"input\" placeholder=\"Password wifi\" maxlength=\"15\" name=\"txtSTAPass\" value=\""+staPASS+"\"></div></div>\
         " + DisplayStationIP() + "\
-        <div class=\"left\">Trạng thái kết nối</div>\
-        <div class=\"right important\">: "+(isConnectAP == true ? "Đã kết nối" : "Không kết nối")+"</div>\
-        <div class=\"left\">Tự động kết nối lại</div>\
-        <div class=\"right\">: <input type=\"radio\" name=\"chboxReconnectAP\" value=\"true\" " + (isReconnectAP ? "checked" : "") + ">Tự động<input type=\"radio\" name=\"chboxReconnectAP\" value=\"false\" " + (!isReconnectAP ? "checked" : "") + ">Không</div>\
+        <div class=\"row-block\"><div class=\"left\">Trạng thái kết nối</div>\
+        <div class=\"right important\">: "+(isConnectAP == true ? "Đã kết nối" : "Không kết nối")+"</div></div>\
+        <div class=\"row-block\"><div class=\"left\">Tự động kết nối lại</div>\
+        <div class=\"right\">: <input type=\"radio\" name=\"chboxReconnectAP\" value=\"true\" " + (isReconnectAP ? "checked" : "") + ">Tự động<input type=\"radio\" name=\"chboxReconnectAP\" value=\"false\" " + (!isReconnectAP ? "checked" : "") + ">Không</div></div>\
+        <div class=\"subtitle\">Hiển thị dữ liệu truyền qua lên màn hình hoặc App di động (Đa điểm)</div>\
+        <div class=\"row-block\"><div class=\"left\"><input type=\"radio\" name=\"chboxServer\" value=\"true\" " + (isServer ? "checked" : "") + ">Có</div>\
+        <div class=\"right\">: <input type=\"radio\" name=\"chboxServer\" value=\"false\" " + (!isServer ? "checked" : "") + ">Không</div></div>\
         <hr>\
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"?txtRefresh=true\">Làm mới</a></button>\
           <button type=\"submit\" name=\"btnSave\" value=\"true\">Lưu</button>\
-          <button type=\"submit\"><a href=\"?txtRestart=true\">Khởi động</a></button>\
-          <button type=\"submit\"><a href=\"?txtLogout=true\">Đăng xuất</a></button>\
+          <button type=\"submit\"><a href=\"/?txtRestart=true\">Khởi động</a></button>\
+          <button type=\"submit\"><a href=\"/?txtLogout=true\">Đăng xuất</a></button>\
         </div>\
         <hr>\
-        <a href=\"/rfconfig\" target=\"_blank\">Mã hóa tên!</a>\
+        <a href=\"/rfconfig\">Mã hóa tên!</a>\
       </form>\
     </div>\
   </body>\
@@ -1140,7 +1142,8 @@ String ChannelRFConfig(){
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"/rfconfig?\">Làm mới</a></button>\
           <button type=\"submit\">Lưu lại</button>\
-          <button type=\"submit\"><a href=\"/\">Đăng nhập</a></button>\
+          <button type=\"submit\"><a href=\"/?txtLogout=true\">Đăng xuất</a></button>\
+          <button type=\"submit\"><a href=\"/?txtBack=true\">Trang trước</a></button>\
         </div>\
       </form>\
     </div>\
@@ -1154,7 +1157,7 @@ String SendTRRFConfig()
   String s="";
   for (int i=0;i< RFCHANNEL ;i++) {
     String id = (i < 10 ? "0" + String(i) : String(i));
-    s += "<tr class=\"row\"><td class=\"column\">"+ id +"</td><td class=\"column\"><input type=\"text\" class=\"input noboder\" maxlength=\"10\" placeholder=\"Tên bàn\" name=\"txtChannelRF"+id+"\" value=\""+ channelRF[i] +"\" required></td></tr>";
+    s += "<tr class=\"row\"><td class=\"column\">"+ id +"</td><td class=\"column\"><input type=\"text\" class=\"input noboder\" maxlength=\"6\" placeholder=\"Tên bàn\" name=\"txtChannelRF"+id+"\" value=\""+ channelRF[i] +"\" required></td></tr>";
   }
   //show(s);
   return s;
@@ -1281,6 +1284,10 @@ void GiaTriThamSo()
       if (Name.indexOf("txtLogout") >= 0){
         isLogin = false;
         show("Logout");
+      }
+      else if (Name.indexOf("txtBack") >= 0){
+        idWebSite = 1;
+        show("Back");
       }
       else if (Name.indexOf("txtSTAName") >= 0){
         if (Value != staSSID && Value.length() > 0){
