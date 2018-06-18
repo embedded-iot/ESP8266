@@ -109,7 +109,7 @@ WiFiUDP Udp;
   #define STA_SSID_DEFAULT "TTQ"
   #define STA_PASS_DEFAULT "0987654321"
   #define AP_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT)
-  #define AP_PASS_DEFAULT "0987654321"
+  #define AP_PASS_DEFAULT "04081984"
   #define STA_IP_DEFAULT "192.168.1.122"
   #define STA_GATEWAY_DEFAULT "192.168.1.1"
   #define STA_SUBNET_DEFAULT "255.255.255.0"
@@ -118,9 +118,9 @@ WiFiUDP Udp;
   #define AP_SUBNET_DEFAULT "255.255.255.0"
 #else 
   #define STA_SSID_DEFAULT NAME_DEFAULT + String(ID_DEFAULT - 1)
-  #define STA_PASS_DEFAULT "0987654321"
+  #define STA_PASS_DEFAULT "04081984"
   #define AP_SSID_DEFAULT NAME_DEFAULT +String(ID_DEFAULT)
-  #define AP_PASS_DEFAULT ""
+  #define AP_PASS_DEFAULT "04081984"
   #define STA_IP_DEFAULT "192.168." + String(ID_DEFAULT - 1) + ".122"
   #define STA_GATEWAY_DEFAULT "192.168." + String(ID_DEFAULT - 1) + ".1"
   #define STA_SUBNET_DEFAULT "255.255.255.0"
@@ -463,7 +463,7 @@ void loop()
     } else {
       // read data from the connected client
       if (client.available() > 0) {
-        String stringClient = client.readString();
+        String stringClient = client.readStringUntil('\n');
         stringClient += "OK";
         if (stringClient.indexOf("#S#") >= 0) {
           String stg = getData(stringClient);
@@ -1292,7 +1292,7 @@ void GiaTriThamSo()
         show("Back");
       }
       else if (Name.indexOf("txtSTAName") >= 0){
-        if (Value != staSSID && Value.length() > 0){
+        if (Value != apSSID && Value != staSSID && Value.length() > 0){
           staSSID =  Value ;
           show("Set staSSID : " + staSSID);
         }
@@ -1322,7 +1322,7 @@ void GiaTriThamSo()
         }
       }
       else if (Name.indexOf("txtAPName") >= 0){
-        if (Value != apSSID && Value.length() > 0){
+        if (Value != staSSID && Value != apSSID && Value.length() > 0){
           String keyEnd = Value.substring(Value.length() - 1, Value.length());
           if ( keyEnd > "0" && keyEnd <= "9") {
             apSSID =  Value ;
