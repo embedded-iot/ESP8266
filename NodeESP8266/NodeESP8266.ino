@@ -69,7 +69,7 @@ ESP8266WebServer server(80);
 #define SERVER_PIN 5 
 
 #define DEBUGGING
-#define MATRIX false    // If define, display matrix
+#define MATRIX true    // If define, display matrix
 #define RFTEST true
 #define RFCHANNEL 16
 #define LENGTH_BUFFER_RF 10
@@ -291,7 +291,7 @@ void setup()
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
   if (flagRestartDevice == false) {
-    printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
+    printText(3, 1, MAX_DEVICES - 1, string2char(labelDefault));
   }
   // PrintMatrix("END     ", 0);
   // delay(1000);
@@ -310,7 +310,7 @@ long intNumber = 0;
 String resultRF = "";
 int idChannel = 0;
 bool flagForward = false;
-
+bool flagSendToClient = false;
 
 long timeShow;
 long DelayShow  = 1000;
@@ -324,8 +324,8 @@ void loop()
   scrollText();
 
   if (flagClearScreen && millis() - tClearScreen > timeoutClearScreen) {
-    printText(0, 0, MAX_DEVICES-1, "        ");
-    printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
+    printText(0, 1, MAX_DEVICES-1, "        ");
+    printText(3, 1, MAX_DEVICES - 1, string2char(labelDefault));
     show("Clear Screen Matrix");
     tClearScreen = millis();
     flagClearScreen = false;
@@ -470,9 +470,9 @@ void loop()
           if (stg == strNoticeMatrix) {
             show("OK! Clear Screen");
             strNoticeMatrix = labelDefault;
-            printText(0, 0, MAX_DEVICES-1, "        ");
+            printText(0, 1, MAX_DEVICES-1, "        ");
             delay(50);
-            printText(3, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+            printText(3, 1, MAX_DEVICES-1, string2char(strNoticeMatrix));
             NoticeMatrix = false;
             NoticeRing = false;
             countNoticeMatrix = 0;
@@ -485,18 +485,8 @@ void loop()
         }
         else show("+IPD:" + stringClient);  
       }
-      if (resultRF.length() > 0) {
-        // digitalWrite(LED,LOW);
-        show(resultRF);
-        if (!client.println(resultRF.c_str())) {
-          // client.stop();
-          show("CLient timeout");
-          client.stop();
-          //tcpServer.close();
-        }
-        else show("SEND OK");
-        // delay(50);
-        // digitalWrite(LED,HIGH);
+      if (!MATRIX) {
+        flagSendToClient = true;
       }
   }
 
@@ -517,6 +507,10 @@ void loop()
       countNoticeRing = 0;
       countNoticeMatrix = 0;
       startColumn = 1;
+      if (MATRIX) {
+        resultRF = EncodePacket(apSSID, strNoticeMatrix);
+        flagSendToClient = true;
+      }
     } else {
       // NoticeMatrix = false;
       // startColumn = 3;
@@ -547,9 +541,9 @@ void loop()
   }
   if (MATRIX && NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
     if (countNoticeMatrix < countBlink) {
-      printText(0, 0, MAX_DEVICES-1, "        ");
+      printText(0, 1, MAX_DEVICES-1, "        ");
       delay(50);
-      printText(0, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+      printText(0, 1, MAX_DEVICES-1, string2char(strNoticeMatrix));
       // show("Ring MATRIX");
       countNoticeMatrix++;
     } else {
@@ -561,6 +555,23 @@ void loop()
     }
     timeNoticeMatrix = millis();
   }
+
+  if (flagSendToClient && resultRF.length() > 0) {
+    // digitalWrite(LED,LOW);
+    show(resultRF);
+    if (!client.println(resultRF.c_str())) {
+      // client.stop();
+      show("CLient timeout");
+      client.stop();
+      //tcpServer.close();
+    }
+    else show("SEND OK");
+    // delay(50);
+    // digitalWrite(LED,HIGH);
+    resultRF = "";
+    flagSendToClient = false;
+  }
+    
 
   delay(10);
 }
@@ -1541,7 +1552,7 @@ void setColumn(int pos) {
 
 // Display String Matrix
 void PrintMatrix(String s, int pos) {
-  printText(0, 0, MAX_DEVICES-1, "        ");
+  printText(0, 1, MAX_DEVICES-1, "        ");
   strcpy(curMessage, s.c_str());
   newMessage[0] = '\0';
   setColumn(pos);
