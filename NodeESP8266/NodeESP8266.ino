@@ -291,7 +291,7 @@ void setup()
   show("End Setup()");
   // PrintMatrix("END!     ", 0);
   if (flagRestartDevice == false) {
-    printText(3, 1, MAX_DEVICES - 1, string2char(labelDefault));
+    printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
   }
   // PrintMatrix("END     ", 0);
   // delay(1000);
@@ -324,8 +324,8 @@ void loop()
   scrollText();
 
   if (flagClearScreen && millis() - tClearScreen > timeoutClearScreen) {
-    printText(0, 1, MAX_DEVICES-1, "        ");
-    printText(3, 1, MAX_DEVICES - 1, string2char(labelDefault));
+    printText(0, 0, MAX_DEVICES-1, "        ");
+    printText(3, 0, MAX_DEVICES - 1, string2char(labelDefault));
     show("Clear Screen Matrix");
     tClearScreen = millis();
     flagClearScreen = false;
@@ -470,9 +470,9 @@ void loop()
           if (stg == strNoticeMatrix) {
             show("OK! Clear Screen");
             strNoticeMatrix = labelDefault;
-            printText(0, 1, MAX_DEVICES-1, "        ");
+            printText(0, 0, MAX_DEVICES-1, "        ");
             delay(50);
-            printText(3, 1, MAX_DEVICES-1, string2char(strNoticeMatrix));
+            printText(3, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
             NoticeMatrix = false;
             NoticeRing = false;
             countNoticeMatrix = 0;
@@ -541,9 +541,9 @@ void loop()
   }
   if (MATRIX && NoticeMatrix && millis() - timeNoticeMatrix > 500 ) {
     if (countNoticeMatrix < countBlink) {
-      printText(0, 1, MAX_DEVICES-1, "        ");
+      printText(0, 0, MAX_DEVICES-1, "        ");
       delay(50);
-      printText(0, 1, MAX_DEVICES-1, string2char(strNoticeMatrix));
+      printText(0, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
       // show("Ring MATRIX");
       countNoticeMatrix++;
     } else {
@@ -1552,7 +1552,7 @@ void setColumn(int pos) {
 
 // Display String Matrix
 void PrintMatrix(String s, int pos) {
-  printText(0, 1, MAX_DEVICES-1, "        ");
+  printText(0, 0, MAX_DEVICES-1, "        ");
   strcpy(curMessage, s.c_str());
   newMessage[0] = '\0';
   setColumn(pos);
