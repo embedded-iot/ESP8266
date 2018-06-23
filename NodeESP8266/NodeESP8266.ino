@@ -92,7 +92,8 @@ ESP8266WebServer server(80);
 #define ADDR_RFCONFIG (ADDR_PORTTCP+20)
 
 #define ADDR_SERVER           400
-#define ADDR_RECONNECT_AP     402
+#define ADDR_RECONNECT_AP     401
+#define ADDR_BUTTON_HANDLE    402
 
 #define ID_DEFAULT 9
 #define NAME_DEFAULT "MBELL"
@@ -133,6 +134,7 @@ IPAddress broadCast;
 
 bool isServer =  false; 
 bool isReconnectAP = false;
+bool isButtonHandle = true;
 bool flagClear = false;
 
 bool isLogin = false;
@@ -407,29 +409,45 @@ void loop()
     String data = getStringByIdChannelRF(idChannel);
     String packet = EncodePacket(apSSID, data);
     resultRF = packet;
+    show("resultRF :" + resultRF);
+    if (isButtonHandle && resultRF.indexOf("15") >= 0) {
+      show("Button handle! Clear Screen 1");
+      ClearScreen();
+    }
+    else 
     pushBufferRF(resultRF);
     idChannel = 0;
   }else resultRF = "";
   
   receivedUDP = listenUDP();
   
+  if (isConnectAP && resultRF.length() > 0) 
+  {
+    show("Send " + broadCast.toString() + "- Data" + resultRF);
+    SendUdp(broadCast.toString(), udpPort, resultRF);
+  }
       
-  if (receivedUDP.length() > 0)
+  if (!isServer && receivedUDP.length() > 0)
   {
     show(receivedUDP);
     SendUdp(broadCast.toString(), udpPort, receivedUDP);
+    if (isButtonHandle && receivedUDP.indexOf("15") >= 0) {
+      show("Button handle! Clear Screen 2");
+      ClearScreen();
+    }
+    else
     pushBufferRF(receivedUDP);
   }
 
-  if (isConnectAP && resultRF.length() > 0) 
-  {
-    show(broadCast.toString() + "-" + resultRF);
-    SendUdp(broadCast.toString(), udpPort, resultRF);
-  }
   // Nếu là server thì hiển thị dữ liệu của cả những nút con
   if (isServer && receivedUDP.length() > 0) {
     resultRF = receivedUDP;
-    pushBufferRF(resultRF);
+    if (isButtonHandle && receivedUDP.indexOf("15") >= 0) {
+      show("Button handle! Clear Screen 3");
+      ClearScreen();
+    }
+    else 
+      pushBufferRF(resultRF);
   }
 
   if (resultRF.length() > 0) {
@@ -443,7 +461,15 @@ void loop()
     //   FlagNotice = true;
     // }
     // FlagNotice = true;
-    PushBuffNotice(getData(resultRF));
+    if (isButtonHandle && resultRF.indexOf("15") >= 0) {
+      show("Button handle! Clear Screen  4");
+      ClearScreen();
+    }
+    else {
+      show("PushBuffNotice");
+      PushBuffNotice(getData(resultRF));
+    }
+    
      if (!client.connected()) {
        client.flush();
        client.stop();
@@ -469,14 +495,7 @@ void loop()
           String stg = getData(stringClient);
           if (stg == strNoticeMatrix) {
             show("OK! Clear Screen");
-            strNoticeMatrix = labelDefault;
-            printText(0, 0, MAX_DEVICES-1, "        ");
-            delay(50);
-            printText(3, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
-            NoticeMatrix = false;
-            NoticeRing = false;
-            countNoticeMatrix = 0;
-            countNoticeRing = 0;
+            ClearScreen();
             //FilterBuffNotice(stg);
           }
           pushBufferRF(stringClient);
@@ -576,6 +595,16 @@ void loop()
   delay(10);
 }
 
+void ClearScreen() {
+  strNoticeMatrix = labelDefault;
+  printText(0, 0, MAX_DEVICES-1, "        ");
+  delay(50);
+  printText(3, 0, MAX_DEVICES-1, string2char(strNoticeMatrix));
+  NoticeMatrix = false;
+  NoticeRing = false;
+  countNoticeMatrix = 0;
+  countNoticeRing = 0;
+}
 void PushBuffNotice(String s) {
   if (lengthBuffNotice == 0) {
     buffNotice[lengthBuffNotice] = s;
@@ -879,6 +908,7 @@ void WriteConfig()
   
   SaveIntToEEPROM(isServer ? 1 : 0, ADDR_SERVER);
   SaveIntToEEPROM(isReconnectAP ? 1 : 0, ADDR_RECONNECT_AP);
+  SaveIntToEEPROM(isButtonHandle ? 1 : 0, ADDR_BUTTON_HANDLE);  
 
   show("Write Config");
 }
@@ -913,6 +943,10 @@ void ReadConfig()
     show("I am server!");
   }
 
+  if (ReadIntFromEEPROM(ADDR_BUTTON_HANDLE) != 0) {
+    isButtonHandle = true;
+    show("Button Handle is Checked!");
+  }
   if (ReadIntFromEEPROM(ADDR_RECONNECT_AP) != 0) {
     isReconnectAP = true;
     show("Auto Reconnect AP!");
@@ -1126,6 +1160,9 @@ String ContentConfig(){
         <div class=\"subtitle\">Hiển thị dữ liệu truyền qua lên màn hình hoặc App di động (Đa điểm)</div>\
         <div class=\"row-block\"><div class=\"left\"><input type=\"radio\" name=\"chboxServer\" value=\"true\" " + (isServer ? "checked" : "") + ">Có</div>\
         <div class=\"right\">: <input type=\"radio\" name=\"chboxServer\" value=\"false\" " + (!isServer ? "checked" : "") + ">Không</div></div>\
+        <div class=\"subtitle\">Sử dụng nút báo đã phục vụ</div>\
+        <div class=\"row-block\"><div class=\"left\"><input type=\"radio\" name=\"chboxButtonHandle\" value=\"true\" " + (isButtonHandle ? "checked" : "") + ">Có</div>\
+        <div class=\"right\">: <input type=\"radio\" name=\"chboxButtonHandle\" value=\"false\" " + (!isButtonHandle ? "checked" : "") + ">Không</div></div>\
         <hr>\
         <div class=\"listBtn\">\
           <button type=\"submit\"><a href=\"?txtRefresh=true\">Làm mới</a></button>\
@@ -1375,6 +1412,13 @@ void GiaTriThamSo()
         if (Value != strChboxReconnectAP){
           isReconnectAP = (Value == "true" ? true : false);
           show("Set isReconnectAP : " + Value);
+        }
+      }
+      else if (Name.indexOf("chboxButtonHandle") >= 0){
+        String strChboxButtonHandle = isButtonHandle ? "true" : "false";
+        if (Value != strChboxButtonHandle){
+          isButtonHandle = (Value == "true" ? true : false);
+          show("Set isButtonHandle : " + Value);
         }
       }
       else if (Name.indexOf("chboxServer") >= 0){
