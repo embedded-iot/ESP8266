@@ -883,7 +883,7 @@ void ConfigDefault()
   apGateway = AP_GATEWAY_DEFAULT;
   apSubnet = AP_SUBNET_DEFAULT;
   portTCP = PORT_TCP_DEFAULT;
-
+  isServer = true;
   ChannelRFDefault();
   show("Config Default");
 }
@@ -1205,7 +1205,7 @@ String ChannelRFConfig(){
 String SendTRRFConfig()
 {
   String s="";
-  for (int i=0;i< RFCHANNEL ;i++) {
+  for (int i=0;i< (isButtonHandle ? RFCHANNEL - 1: RFCHANNEL) ;i++) {
     String id = (i < 10 ? "0" + String(i) : String(i));
     s += "<tr class=\"row\"><td class=\"column\">"+ id +"</td><td class=\"column\"><input type=\"text\" class=\"input noboder\" maxlength=\"6\" placeholder=\"Tên bàn\" name=\"txtChannelRF"+id+"\" value=\""+ channelRF[i] +"\" required></td></tr>";
   }
